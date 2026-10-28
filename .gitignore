@@ -1,0 +1,29 @@
+# Secrets — never commit
+.env
+*.env.local
+secrets/
+
+# Go
+/bin/
+*.test
+coverage.out
+
+# Python training toolkit
+training/toolkit/.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+
+# Experiment outputs, datasets and model artifacts live outside git
+training/toolkit/runs/
+training/toolkit/data/
+*.pkl
+*.onnx
+*.gguf
+*.safetensors
+
+# Editors / OS
+.idea/
+.vscode/
+.DS_Store

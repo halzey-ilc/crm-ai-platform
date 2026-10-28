@@ -1,0 +1,70 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_USER: ai_owner
+          POSTGRES_PASSWORD: ci-owner-password-not-secret
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ai_owner" --health-interval 5s --health-timeout 3s --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || (gofmt -l .; exit 1)
+      - name: go vet
+        run: go vet ./... && go vet -tags integration ./tests/...
+      - name: go mod verify
+        run: go mod verify
+      - name: unit tests
+        run: go test -race ./...
+      - name: integration and tenant-isolation tests
+        env:
+          AI_TEST_OWNER_URL: postgres://ai_owner:ci-owner-password-not-secret@127.0.0.1:5432/postgres?sslmode=disable
+        run: go test -race -count=1 -tags integration ./tests/integration/...
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: build runtime images
+        run: |
+          for t in gateway orchestrator migrate; do
+            docker build -f deployments/docker/Dockerfile --target "$t" -t "crm-ai-platform/$t:ci" .
+          done
+
+  training-toolkit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: training/toolkit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync --all-groups --locked
+      - run: uv run ruff check .
+      - run: uv run pytest -q
+      - name: reproducible synthetic experiment
+        run: uv run crmai-train run experiments/lead_scoring_synthetic.toml --out runs/ci

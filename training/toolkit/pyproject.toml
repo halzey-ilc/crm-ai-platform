@@ -1,0 +1,42 @@
+[project]
+name = "crmai-training"
+version = "0.1.0"
+description = "Isolated training toolkit of the CRM AI Platform: dataset checks, versioning, experiments, evaluation."
+requires-python = ">=3.13,<3.14"
+dependencies = [
+    "numpy>=2.2,<3",
+    "scikit-learn>=1.6,<2",
+]
+
+[project.scripts]
+crmai-train = "crmai_training.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=9,<10",
+    "ruff>=0.11",
+]
+
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/crmai_training"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers -p no:cacheprovider"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "S", "N", "C4", "SIM", "RUF", "PT", "T20", "DTZ", "RET", "PL"]
+ignore = ["PLR2004", "PLR0913"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+# The CLI prints its report path; pickle is written (never loaded) by this toolkit.
+"src/crmai_training/cli.py" = ["T201"]

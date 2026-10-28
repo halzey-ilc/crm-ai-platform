@@ -1,0 +1,105 @@
+# Контракты API
+
+Статусы — [STATUS_LEGEND.md](STATUS_LEGEND.md). Все контракты ниже ✅ (покрыты тестами
+`internal/httpapi`, `contracts`, `tests/integration`).
+
+## 1. Правила версионирования
+
+- **HTTP.** Версия в пути (`/v1/`). Несовместимое изменение выходит как `/v2/`, `/v1`
+  поддерживается до согласованной даты отключения.
+- **Тела ответов** несут поле `schema` (`ai.job.v1`, `ai.error.v1`, `ai.job_types.v1`).
+- **Тип задачи** версионирован в имени (`call.summary.v1`).
+- **JSON Schema** входа и выхода лежат в `contracts/api/` и `contracts/model-schemas/`.
+  Идентификатор схемы — имя файла без `.json` (`call_summary.input.v1`).
+- **Опубликованная схема неизменяема.** Совместимо можно только добавить необязательное поле
+  в **выход**. Вход закрыт (`additionalProperties: false`), поэтому новое поле во входе
+  требует новой версии. Любое удаление или сужение поля — новая версия.
+- **Схема ошибок** одна для всех эндпоинтов.
+
+## 2. Аутентификация
+
+`Authorization: Bearer <JWT HS256>`. Claims: `iss`, `aud`, `sub`, `tenant`,
+`scope` (через пробел), `iat`, `exp`, `jti`. Срок жизни ≤ 10 мин по умолчанию.
+Scopes: `ai.jobs.create`, `ai.jobs.read`, `ai.jobs.cancel`.
+
+Tenant берётся **только из токена**. Необязательный заголовок `X-Tenant` должен
+совпадать с ним, иначе 403 `tenant_mismatch`. Поле tenant в теле отклоняется
+как неизвестное.
+
+## 3. Эндпоинты
+
+| Метод и путь | Scope | Успех | Описание |
+|---|---|---|---|
+| `GET /health/live` | — | 200 | Процесс жив |
+| `GET /health/ready` | — | 200 / 503 | БД доступна и схема на ожидаемой версии |
+| `POST /v1/jobs` | `ai.jobs.create` | 202 (создана) / 200 (повтор) | Создать задачу |
+| `GET /v1/jobs/{id}` | `ai.jobs.read` | 200 | Статус и результат |
+| `POST /v1/jobs/{id}/cancel` | `ai.jobs.cancel` | 202 | Отменить |
+| `GET /v1/job-types` | `ai.jobs.read` | 200 | Каталог типов задач |
+
+### POST /v1/jobs
+
+Заголовки: `Idempotency-Key` (обязателен, 8–128 символов `[A-Za-z0-9._:-]`),
+`X-Correlation-ID` (необязателен; принимается, только если безопасен для логов, иначе
+генерируется новый).
+
+```json
+{ "type": "call.summary.v1",
+  "input": { "transcript": "Здравствуйте. … Перезвоню в пятницу.", "language": "ru", "call_ref": "c0ffee-01" } }
+```
+
+Ответ `ai.job.v1` (вход **никогда** не возвращается):
+
+```json
+{ "schema": "ai.job.v1", "id": "4f41ba89-…", "type": "call.summary.v1", "tenant": "acme",
+  "status": "queued", "attempts": 0, "max_attempts": 3, "cancel_requested": false,
+  "correlation_id": "…", "created_at": "…", "updated_at": "…", "started_at": null, "finished_at": null,
+  "error": null, "result": null }
+```
+
+После выполнения `result`:
+
+```json
+{ "schema_id": "call_summary.output.v1", "provider": "mock", "model": "mock-extractive-v1",
+  "created_at": "…",
+  "output": { "schema": "call_summary.output.v1", "summary": "…",
+              "key_points": [{ "text": "…", "evidence_quote": "…" }],
+              "next_step": { "text": "…", "evidence_quote": "…" } ,
+              "language": "ru",
+              "generator": { "provider": "mock", "model": "mock-extractive-v1", "is_mock": true } } }
+```
+
+`error` заполняется только у задач в статусе `failed`: `{code, message}`.
+Сообщение не содержит фрагментов входа.
+
+## 4. Ошибки (`ai.error.v1`)
+
+```json
+{ "schema": "ai.error.v1",
+  "error": { "code": "invalid_input", "message": "…", "correlation_id": "…", "details": ["/language: enum"] } }
+```
+
+`details` указывает место и нарушенное ключевое слово схемы, но **не значения**.
+
+| HTTP | code | Когда |
+|---|---|---|
+| 400 | `idempotency_key_required`, `invalid_json`, `invalid_request` | Неверный запрос |
+| 401 | `unauthenticated` | Нет токена, токен неверный или истёк (причина только в логах сервера) |
+| 403 | `forbidden`, `tenant_mismatch` | Нет scope или `X-Tenant` не совпадает с токеном |
+| 404 | `not_found` | Нет задачи **или задача другой компании** (ответ одинаковый) |
+| 409 | `idempotency_conflict`, `not_cancellable` | Ключ уже использован с другим телом; задача уже завершена |
+| 413 | `payload_too_large` | Тело больше `AI_MAX_BODY_BYTES` |
+| 422 | `unknown_job_type`, `invalid_input` | Тип или вход не соответствует контракту |
+| 429 | `rate_limited` | Превышен лимит (tenant, subject) |
+| 500 | `internal_error` | Без деталей |
+| 503 | `timeout` | Тайм-аут запроса |
+
+Коды ошибок задачи (`job.error.code`): `output_contract_violation`,
+`output_not_grounded`, `provider_error`, `unknown_job_type`,
+`attempts_exhausted`, `internal_error`.
+
+## 5. События
+
+📐 Событийных контрактов пока нет: внешнего канала событий нет ни у CRM, ни у
+AI Platform. Каталог `contracts/events/` будет создан вместе с первым событием
+(см. [CRM_INTEGRATION.md §3.3](CRM_INTEGRATION.md)).

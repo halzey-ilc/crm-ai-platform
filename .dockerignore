@@ -1,0 +1,9 @@
+.env
+*.env.local
+secrets/
+.git/
+bin/
+docs/
+training/
+tests/
+**/*_test.go

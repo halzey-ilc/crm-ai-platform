@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "call_summary.input.v1",
+  "description": "Input of the call.summary.v1 job: a call transcript the CRM is allowed to send for this tenant.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["transcript", "language"],
+  "properties": {
+    "transcript": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100000,
+      "description": "Plain-text transcript. Never logged by the platform."
+    },
+    "language": {
+      "type": "string",
+      "enum": ["ru", "ky", "en", "unknown"]
+    },
+    "call_ref": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+      "description": "Opaque reference to the CRM call record (e.g. its UUID). Not interpreted by the platform."
+    }
+  }
+}

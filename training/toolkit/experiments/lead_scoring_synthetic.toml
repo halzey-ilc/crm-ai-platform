@@ -1,0 +1,36 @@
+# Small, reproducible pipeline check on SYNTHETIC data. It exercises every
+# stage (generation -> quality checks -> temporal split -> baseline vs model
+# -> report) on a laptop CPU in seconds. Not a real model.
+
+[experiment]
+name = "lead-scoring-synthetic"
+task = "lead_scoring"
+seed = 7
+
+[dataset]
+kind = "synthetic"
+rows = 5000
+seed = 42
+tenant = "synthetic"
+
+[split]
+train = 0.7
+valid = 0.15
+test = 0.15
+
+[features]
+label = "converted"
+id_column = "lead_id"
+time_column = "created_at"
+categorical = ["source"]
+numeric = ["has_email", "has_phone", "first_response_minutes", "activities_7d", "meetings_7d"]
+# CRM fields known to leak the outcome (see docs/DATA_READINESS_AUDIT.md).
+forbidden_columns = ["status", "converted_customer_id", "disqualify_reason", "updated_at", "closed_at"]
+
+[sufficiency]
+min_rows = 1000
+min_positives = 100
+
+[model]
+C = 1.0
+max_iter = 1000
