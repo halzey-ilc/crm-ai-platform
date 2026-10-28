@@ -3,7 +3,7 @@
 Источник фактов — чтение кода CRM (`/home/user/crm-platform`, коммит `588431e`,
 2026-10-28). Статусы — [STATUS_LEGEND.md](STATUS_LEGEND.md).
 
-## 0. Реализовано: этап 1 — резюме звонка (✅, ветка CRM `feature/ai-insights`)
+## 0. Реализовано: этап 1 — резюме звонка (✅, в `main` CRM, коммит `59892ec`)
 
 По согласованию владельца в CRM добавлен модуль `modules.ai_insights`
 (описание: `crm-platform/docs/architecture/ai-integration.md`). Выбрана схема

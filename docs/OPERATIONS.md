@@ -30,7 +30,7 @@ curl -s -X POST localhost:8090/v1/jobs -H "Authorization: Bearer $TOK" \
 ### Вместе с CRM ✅
 
 ```bash
-./scripts/e2e_with_crm.sh   # нужен ../crm-platform на ветке с модулем ai_insights
+./scripts/e2e_with_crm.sh   # нужен ../crm-platform (main с модулем ai_insights)
 ```
 
 Скрипт поднимает этот стек, переподключает `api` и `worker` CRM через
