@@ -166,3 +166,34 @@ func TestFailureClassification(t *testing.T) {
 		t.Fatalf("a transcript beyond the context window is a permanent error, got %v", err)
 	}
 }
+
+func TestKpiExplanationDropsInventedNumbers(t *testing.T) {
+	input := `{"language":"en","period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
+	 "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},
+	 "metrics":[{"code":"revenue_won","name":"Revenue","unit":"money","current":1250,"previous":1000,"change":250,"change_pct":25}]}`
+	answer := `{"headline":"Revenue up 25%",
+	 "observations":[{"metric_codes":["revenue_won"],"text":"Revenue rose to 1250 from 1000 (+25%)."},
+	                 {"metric_codes":["revenue_won"],"text":"Average deal grew to 417."}],
+	 "recommendations":[{"metric_codes":["revenue_won"],"text":"Keep the 3 best campaigns."}]}`
+	var seen map[string]any
+	srv := fakeServer(t, 200, answer, &seen)
+	resp, err := invoke(t, srv.URL, "kpi_explanation", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("kpi_explanation.output.v1", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	out := string(resp.Output)
+	if strings.Contains(out, "417") || strings.Contains(out, "3 best") {
+		t.Fatalf("items with invented numbers must be dropped: %s", out)
+	}
+	if !strings.Contains(out, "1250 from 1000") {
+		t.Fatalf("the grounded observation must stay: %s", out)
+	}
+	schema, _ := json.Marshal(seen["response_format"])
+	if !strings.Contains(string(schema), `"enum":["revenue_won"]`) {
+		t.Fatalf("metric codes must be constrained to the input: %s", schema)
+	}
+}

@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -31,8 +32,10 @@ type Provider struct{}
 func (Provider) Name() string { return Name }
 
 func (Provider) Supports(task string) bool {
-	return task == TaskCallSummary || task == TaskOperationsDigest
+	return task == TaskCallSummary || task == TaskOperationsDigest || task == TaskKpiExplanation
 }
+
+func sprintf(format string, args ...any) string { return fmt.Sprintf(format, args...) }
 
 func (Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Response, error) {
 	if err := ctx.Err(); err != nil {
@@ -47,6 +50,12 @@ func (Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Respon
 		return modelgw.Response{Output: out, Provider: Name, Model: Model}, nil
 	case TaskOperationsDigest:
 		out, err := operationsDigest(req.Input)
+		if err != nil {
+			return modelgw.Response{}, err
+		}
+		return modelgw.Response{Output: out, Provider: Name, Model: Model}, nil
+	case TaskKpiExplanation:
+		out, err := kpiExplanation(req.Input)
 		if err != nil {
 			return modelgw.Response{}, err
 		}

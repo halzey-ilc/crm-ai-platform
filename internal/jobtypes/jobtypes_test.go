@@ -18,6 +18,7 @@ func gateway(t *testing.T) *modelgw.Gateway {
 	gw, err := modelgw.New(map[string]modelgw.Provider{
 		"call_summary":      mock.Provider{},
 		"operations_digest": mock.Provider{},
+		"kpi_explanation":   mock.Provider{},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -132,4 +133,59 @@ func jobtypesIsPermanent(err error, target **jobtypes.PermanentError) bool {
 	p, ok := err.(*jobtypes.PermanentError)
 	*target = p
 	return ok
+}
+
+const kpiInput = `{"language":"ru",
+ "period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
+ "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},
+ "metrics":[
+  {"code":"revenue_won","name":"Revenue","unit":"money","current":1250000,"previous":1000000,"change":250000,"change_pct":25},
+  {"code":"win_rate","name":"Win rate","unit":"percent","current":32.5,"previous":40,"change":-7.5,"change_pct":-18.75},
+  {"code":"deals_won","name":"Deals won","unit":"count","current":12,"previous":null,"change":null,"change_pct":null}]}`
+
+func TestMockKpiExplanationIsValidAndGrounded(t *testing.T) {
+	reg := testutil.Registry(t)
+	res, err := reg.Execute(context.Background(), gateway(t), jobs.Job{
+		ID: "k1", TenantID: "acme", Type: "kpi.explanation.v1", Input: json.RawMessage(kpiInput),
+	})
+	if err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if !strings.Contains(string(res.Output), `"metric_codes":["revenue_won"]`) ||
+		!strings.Contains(string(res.Output), `"metric_codes":["win_rate"]`) {
+		t.Fatalf("both moving metrics must be explained: %s", res.Output)
+	}
+	empty := `{"language":"en","period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
+	 "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},
+	 "metrics":[{"code":"deals_won","name":"Deals won","unit":"count","current":0,"previous":0,"change":0,"change_pct":null}]}`
+	res, err = reg.Execute(context.Background(), gateway(t), jobs.Job{
+		ID: "k2", TenantID: "acme", Type: "kpi.explanation.v1", Input: json.RawMessage(empty),
+	})
+	if err != nil || !strings.Contains(string(res.Output), `"insufficient_data":true`) {
+		t.Fatalf("no values must be reported as insufficient: %v %s", err, res.Output)
+	}
+}
+
+func TestKpiGroundingRejectsInventedNumbersAndCodes(t *testing.T) {
+	gen := `"language":"ru","generator":{"provider":"fixed","model":"m","is_mock":true}`
+	cases := map[string]string{
+		"invented number":     `{"schema":"kpi_explanation.output.v1","headline":"h","observations":[{"metric_codes":["revenue_won"],"text":"Revenue grew 31%."}],"recommendations":[],"insufficient_data":false,` + gen + `}`,
+		"computed average":    `{"schema":"kpi_explanation.output.v1","headline":"h","observations":[{"metric_codes":["revenue_won"],"text":"Average deal 104167."}],"recommendations":[],"insufficient_data":false,` + gen + `}`,
+		"unknown metric":      `{"schema":"kpi_explanation.output.v1","headline":"h","observations":[{"metric_codes":["churn"],"text":"Churn is fine."}],"recommendations":[],"insufficient_data":false,` + gen + `}`,
+		"number in headline":  `{"schema":"kpi_explanation.output.v1","headline":"7 problems","observations":[{"metric_codes":["revenue_won"],"text":"Revenue up 25%."}],"recommendations":[],"insufficient_data":false,` + gen + `}`,
+		"false insufficiency": `{"schema":"kpi_explanation.output.v1","headline":"h","observations":[],"recommendations":[],"insufficient_data":true,` + gen + `}`,
+	}
+	reg := testutil.Registry(t)
+	for name, out := range cases {
+		t.Run(name, func(t *testing.T) {
+			gw, _ := modelgw.New(map[string]modelgw.Provider{"kpi_explanation": fixed{out}})
+			_, err := reg.Execute(context.Background(), gw, jobs.Job{
+				ID: "j", TenantID: "acme", Type: "kpi.explanation.v1", Input: json.RawMessage(kpiInput),
+			})
+			var p *jobtypes.PermanentError
+			if !jobtypesIsPermanent(err, &p) || p.Code != "output_not_grounded" {
+				t.Fatalf("want output_not_grounded, got %v", err)
+			}
+		})
+	}
 }
