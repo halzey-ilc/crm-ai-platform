@@ -55,7 +55,7 @@ AI Platform — отдельный проект, интеллектуальна�
 | Audio processing (Rust) | Rust | — | 📐 только при измеримой необходимости |
 | AI Data Platform (каталог датасетов) | — | — | 🟠 версия + отчёт качества в Toolkit; каталог 📐 |
 | AI Evaluation (регрессии моделей) | — | — | 🟠 метрики эксперимента; регрессионные наборы 📐 |
-| 8 AI-направлений | — | — | 📐 см. [AI_ROADMAP.md](AI_ROADMAP.md) |
+| 8 AI-направлений | — | — | 📐 состав и принципы согласованы ([ADR-005](DECISIONS/ADR-005-approved-scope-and-principles.md)), порядок — [AI_ROADMAP.md](AI_ROADMAP.md) |
 
 Отклонение от предложенного дерева каталогов: вместо `services/gateway-go` и
 `services/orchestrator-go` с отдельными модулями — **один Go-модуль** в корне
