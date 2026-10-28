@@ -8,7 +8,7 @@
 |---|---|---|---|
 | A. Discovery | Изучение CRM, окружения, данных | ✅ 2026-10-28 | — |
 | B. Architecture | Документы в `docs/`, ADR | ✅ | — |
-| C. Foundation | Gateway, Job System, Orchestrator, mock provider, контракты, RLS, Docker, тесты, CI | ✅ локально; CI 🟡 (не запускался в GitHub) | — |
+| C. Foundation | Gateway, Job System, Orchestrator, mock provider, контракты, RLS, Docker, тесты, CI | ✅ локально и в GitHub Actions | — |
 | D. Data Readiness | Аудит + pipeline проверки синтетического датасета | ✅ | — |
 | E. Training Foundation | Toolkit: конфиг, проверки, версии, split, обучение, метрики, артефакты | ✅ | — |
 | F. First Real Model | Lead scoring на реальных данных одной компании | ⛔ | реальные лиды с исходами; `converted_at` в CRM; разрешение на использование данных |
@@ -37,4 +37,4 @@
    Model Gateway; оценить качество на синтетических ru и ky примерах; лицензия модели —
    отдельное решение.
 3. Метрики Prometheus и очистка данных по срокам хранения.
-4. Первый запуск CI в GitHub (нужен remote-репозиторий).
+4. Сканирование образов (Trivy) и Python-зависимостей в CI.

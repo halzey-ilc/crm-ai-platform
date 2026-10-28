@@ -1,8 +1,9 @@
 # Безопасность AI Platform
 
-Статусы — [STATUS_LEGEND.md](STATUS_LEGEND.md). Если не указано иначе, проверки
-выполнены локально; workflow CI (`.github/workflows/ci.yml`) написан, но в
-GitHub ещё не запускался (у репозитория нет remote).
+Статусы — [STATUS_LEGEND.md](STATUS_LEGEND.md). Проверки выполняются локально и в
+GitHub Actions (`.github/workflows/ci.yml`). Первый запуск CI нашёл через
+govulncheck уязвимости GO-2026-6629 и GO-2026-5970 в `golang.org/x/text` v0.29.0
+(косвенная зависимость pgx); исправлено обновлением до v0.43.0, после чего CI зелёный.
 
 ## 1. Изоляция компаний (defense in depth)
 
@@ -76,7 +77,8 @@ GitHub ещё не запускался (у репозитория нет remote
 
 ## 8. Не сделано (известные пробелы)
 
-- 📐 Сканирование образов и зависимостей в CI (в workflow есть `govulncheck`, Trivy нет).
+- ✅ Сканирование Go-зависимостей в CI (`govulncheck`). 📐 Сканирование образов (Trivy) и
+  Python-зависимостей (pip-audit).
 - 📐 TLS на gateway: предполагается TLS-терминация на edge, как в CRM (nginx).
 - 📐 Аудит чувствительных операций в отдельный журнал. Сейчас есть только access log и
   структурированные логи воркера.
