@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "operations_digest.output.v1",
+  "description": "Explanation of an operations digest. Every item and recommendation cites the findings it is based on; with no findings the output says so instead of inventing content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "headline", "items", "recommendations", "insufficient_data", "language", "generator"],
+  "properties": {
+    "schema": { "const": "operations_digest.output.v1" },
+    "headline": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "items": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "text", "finding_refs"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["stale_lead", "overdue_task", "deal_without_next_step", "stalled_deal"] },
+          "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "finding_refs": { "$ref": "#/$defs/refs" }
+        }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "finding_refs"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "finding_refs": { "$ref": "#/$defs/refs" }
+        }
+      }
+    },
+    "insufficient_data": {
+      "type": "boolean",
+      "description": "True when the input has no findings to explain; items and recommendations are then empty."
+    },
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "is_mock"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "is_mock": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "refs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$" }
+    }
+  }
+}

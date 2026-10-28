@@ -72,6 +72,28 @@ Tenant берётся **только из токена**. Необязатель
 `error` заполняется только у задач в статусе `failed`: `{code, message}`.
 Сообщение не содержит фрагментов входа.
 
+### Тип задачи `operations.digest.v1` (AI Operations) ✅
+
+Объясняет сводку нарушений, которые CRM нашла **своими детерминированными правилами**
+(`GET /api/v1/operations/findings/` в CRM). На вход идут только идентификаторы, виды
+нарушений, возраст в днях и пороги компании, без имён, сумм и текста:
+
+```json
+{ "type": "operations.digest.v1",
+  "input": { "language": "ru",
+             "thresholds": { "stale_lead_days": 3, "stalled_deal_days": 14 },
+             "counts": { "stale_lead": 2, "overdue_task": 1, "deal_without_next_step": 1, "stalled_deal": 0 },
+             "findings": [ { "ref": "lead-1", "kind": "stale_lead", "age_days": 12 } ] } }
+```
+
+Выход `operations_digest.output.v1`: `headline`, `items[]` (`kind`, `text`,
+`finding_refs`), `recommendations[]` (`text`, `finding_refs`), `insufficient_data`,
+`language`, `generator`. Проверка привязки отклоняет выход, если он:
+- ссылается на нарушение, которого нет во входе;
+- ссылается на нарушение под чужим видом;
+- описывает вид с нулевым количеством;
+- при пустом входе не ставит `insufficient_data: true` (принцип 7, ADR-005).
+
 ## 4. Ошибки (`ai.error.v1`)
 
 ```json

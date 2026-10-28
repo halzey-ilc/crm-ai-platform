@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "operations_digest.input.v1",
+  "description": "Findings computed by the CRM's deterministic operations rules. Ids and numbers only: no names, amounts or free text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "thresholds", "counts", "findings"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "thresholds": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stale_lead_days", "stalled_deal_days"],
+      "properties": {
+        "stale_lead_days": { "type": "integer", "minimum": 1, "maximum": 365 },
+        "stalled_deal_days": { "type": "integer", "minimum": 1, "maximum": 365 }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stale_lead", "overdue_task", "deal_without_next_step", "stalled_deal"],
+      "properties": {
+        "stale_lead": { "type": "integer", "minimum": 0 },
+        "overdue_task": { "type": "integer", "minimum": 0 },
+        "deal_without_next_step": { "type": "integer", "minimum": 0 },
+        "stalled_deal": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "maxItems": 200,
+      "description": "The oldest findings; counts may be larger than this list.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "kind", "age_days"],
+        "properties": {
+          "ref": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$" },
+          "kind": { "$ref": "#/$defs/kind" },
+          "age_days": { "type": "integer", "minimum": 0, "maximum": 100000 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "kind": { "type": "string", "enum": ["stale_lead", "overdue_task", "deal_without_next_step", "stalled_deal"] }
+  }
+}

@@ -30,7 +30,9 @@ type Provider struct{}
 
 func (Provider) Name() string { return Name }
 
-func (Provider) Supports(task string) bool { return task == TaskCallSummary }
+func (Provider) Supports(task string) bool {
+	return task == TaskCallSummary || task == TaskOperationsDigest
+}
 
 func (Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Response, error) {
 	if err := ctx.Err(); err != nil {
@@ -39,6 +41,12 @@ func (Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Respon
 	switch req.Task {
 	case TaskCallSummary:
 		out, err := callSummary(req.Input)
+		if err != nil {
+			return modelgw.Response{}, err
+		}
+		return modelgw.Response{Output: out, Provider: Name, Model: Model}, nil
+	case TaskOperationsDigest:
+		out, err := operationsDigest(req.Input)
 		if err != nil {
 			return modelgw.Response{}, err
 		}
