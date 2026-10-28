@@ -27,6 +27,18 @@ curl -s -X POST localhost:8090/v1/jobs -H "Authorization: Bearer $TOK" \
   -d '{"type":"call.summary.v1","input":{"transcript":"Добрый день. Перезвоню завтра.","language":"ru"}}'
 ```
 
+### Вместе с CRM ✅
+
+```bash
+./scripts/e2e_with_crm.sh   # нужен ../crm-platform на ветке с модулем ai_insights
+```
+
+Скрипт поднимает этот стек, переподключает `api` и `worker` CRM через
+`crm-platform/compose.ai.yaml` к сети `crm-ai-link`, где находится **только gateway**,
+и передаёт общий ключ. Затем применяет миграции компаний CRM, создаёт локального
+пользователя `ai-e2e` в компании `demo`, логирует звонок, запрашивает резюме и ждёт
+результат.
+
 ## 3. Проверки
 
 | Команда | Что проверяет | Внешние сервисы |
