@@ -23,7 +23,7 @@ AI Platform в CRM:
 `scripts/e2e_with_crm.sh`. Сценарий: CRM → AI Platform → CRM на двух живых стеках,
 связанных сетью `crm-ai-link`, где есть только gateway.
 
-**Этап 2 — AI Operations (✅, ветка CRM `feature/ai-operations`).** Схема та же: CRM
+**Этап 2 — AI Operations (✅, в `main` CRM, коммит `2c6cf0b`).** Схема та же: CRM
 забирает результат. Правила считает CRM (модуль `operations`). В AI уходят только
 ссылки `lead:<uuid>`, `deal:<uuid>`, `task:<uuid>`, виды нарушений, возраст и пороги
 (`operations.digest.v1`). Сводка личная: каждый видит только свою. Ежедневный запуск
