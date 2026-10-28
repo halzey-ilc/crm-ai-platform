@@ -2,7 +2,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose --env-file .env -f deployments/local/compose.yaml
 TOOLKIT := training/toolkit
 
-.PHONY: help env up down logs ps build test test-integration lint vet fmt-check docker-build \
+.PHONY: help env up up-llm down logs ps build test test-integration lint vet fmt-check docker-build \
         toolkit-install toolkit-test toolkit-experiment check token
 
 help: ## List targets
@@ -14,8 +14,12 @@ env: ## Create .env with generated secrets (never overwrites)
 up: ## Start postgres, migrate, gateway, orchestrator
 	$(COMPOSE) up -d --build
 
+up-llm: ## Start the stack with the local model (Qwen3.5-4B on llama.cpp) instead of the mock
+	./scripts/get_model.sh
+	$(COMPOSE) -f deployments/local/compose.llm.yaml up -d --build
+
 down: ## Stop the stack (keeps the database volume)
-	$(COMPOSE) down
+	$(COMPOSE) -f deployments/local/compose.llm.yaml down
 
 logs: ## Follow service logs
 	$(COMPOSE) logs -f gateway orchestrator

@@ -11,7 +11,13 @@ CRM_DIR="${CRM_DIR:-$AI_DIR/../crm-platform}"
 CRM_URL="${CRM_URL:-http://127.0.0.1:8000}"
 TENANT="${TENANT:-demo}"
 
-(cd "$AI_DIR" && make -s up >/dev/null)
+# Keep the local model if it is running (or requested with AI_USE_LLM=1); plain
+# `make up` would switch the orchestrator back to the mock provider.
+if [ "${AI_USE_LLM:-}" = 1 ] || docker ps --format '{{.Names}}' | grep -qx crm-ai-platform-llm-1; then
+  (cd "$AI_DIR" && make -s up-llm >/dev/null)
+else
+  (cd "$AI_DIR" && make -s up >/dev/null)
+fi
 KEY=$(grep '^AI_AUTH_HS256_KEY=' "$AI_DIR/.env" | cut -d= -f2-)
 COMPOSE=(docker compose -f compose.yaml -f compose.ai.yaml)
 

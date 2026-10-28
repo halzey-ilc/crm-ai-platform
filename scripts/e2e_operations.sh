@@ -22,7 +22,7 @@ api "$CRM_URL/api/v1/operations/findings/" | json '"counts: " + json.dumps(d["co
 STATUS=$(api -o /dev/null -w '%{http_code}' -X POST "$CRM_URL/api/v1/ai/operations/digest/" -d '{"language":"ru"}')
 case "$STATUS" in 200|202) ;; *) echo "digest request returned $STATUS"; exit 1 ;; esac
 
-for _ in $(seq 1 60); do
+for _ in $(seq 1 900); do
   BODY=$(api "$CRM_URL/api/v1/ai/operations/digest/")
   case "$(echo "$BODY" | json 'd["status"]')" in succeeded|failed) break ;; esac
   sleep 1

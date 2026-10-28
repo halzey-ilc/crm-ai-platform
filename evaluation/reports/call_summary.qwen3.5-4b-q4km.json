@@ -1,0 +1,355 @@
+{
+  "summary": {
+    "dataset": "call_summary.synthetic.v1.jsonl",
+    "cases": 8,
+    "succeeded": 8,
+    "fact_recall_mean": 1.0,
+    "next_step_accuracy": 1.0,
+    "latency_s_median": 156.5,
+    "by_language": {
+      "en": {
+        "succeeded": 2,
+        "fact_recall_mean": 1.0,
+        "next_step_accuracy": 1.0
+      },
+      "ky": {
+        "succeeded": 2,
+        "fact_recall_mean": 1.0,
+        "next_step_accuracy": 1.0
+      },
+      "ru": {
+        "succeeded": 4,
+        "fact_recall_mean": 1.0,
+        "next_step_accuracy": 1.0
+      }
+    }
+  },
+  "results": [
+    {
+      "id": "ru-01",
+      "language": "ru",
+      "status": "succeeded",
+      "attempts": 1,
+      "latency_s": 201.9,
+      "provider": "llamacpp",
+      "model": "qwen3.5-4b-instruct-q4_k_m",
+      "fact_recall": 1.0,
+      "missed_facts": [],
+      "next_step_ok": true,
+      "key_points": 3,
+      "output": {
+        "schema": "call_summary.output.v1",
+        "summary": "В ходе звонка Айбек из компании Техносфера обсудил с клиентом потребность в интеграции с 1С и обучении сотрудников. Установлено, что бюджет еще не утвержден и решение принимает финансовый директор. Стороны договорились о повторном звонке в пятницу для отправки коммерческого предложения.",
+        "language": "ru",
+        "generator": {
+          "model": "qwen3.5-4b-instruct-q4_k_m",
+          "is_mock": false,
+          "provider": "llamacpp"
+        },
+        "next_step": {
+          "text": "Перезвон в пятницу с отправкой коммерческого предложения.",
+          "evidence_quote": "Договорились, что я перезвоню в пятницу и отправлю коммерческое предложение"
+        },
+        "key_points": [
+          {
+            "text": "Клиенту требуется интеграция с 1С и обучение сотрудников.",
+            "evidence_quote": "Клиенту нужна интеграция с 1С и обучение сотрудников"
+          },
+          {
+            "text": "Бюджет не утвержден, решение принимает финансовый директор.",
+            "evidence_quote": "Бюджет пока не утверждён, решение принимает финансовый директор"
+          },
+          {
+            "text": "Стороны договорились о повторном звонке в пятницу с отправкой коммерческого предложения.",
+            "evidence_quote": "Договорились, что я перезвоню в пятницу и отправлю коммерческое предложение"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ru-02",
+      "language": "ru",
+      "status": "succeeded",
+      "attempts": 1,
+      "latency_s": 179.3,
+      "provider": "llamacpp",
+      "model": "qwen3.5-4b-instruct-q4_k_m",
+      "fact_recall": 1.0,
+      "missed_facts": [],
+      "next_step_ok": true,
+      "key_points": 4,
+      "output": {
+        "schema": "call_summary.output.v1",
+        "summary": "В ходе разговора клиент сообщил, что цена нашей компании на 20% выше, чем у конкурентов, хотя функционал ему нравится. Основным возражением стали сроки внедрения в три месяца. Клиент попросил предоставить скидку и кейсы из похожих компаний. В качестве решения была назначена встреча на следующий вторник в 10:00.",
+        "language": "ru",
+        "generator": {
+          "model": "qwen3.5-4b-instruct-q4_k_m",
+          "is_mock": false,
+          "provider": "llamacpp"
+        },
+        "next_step": {
+          "text": "Встреча назначена на следующий вторник в 10:00.",
+          "evidence_quote": "Встречу назначили на следующий вторник в десять утра"
+        },
+        "key_points": [
+          {
+            "text": "Клиент указал, что цена выше конкурентов примерно на 20%.",
+            "evidence_quote": "наша цена выше, чем у конкурента, примерно на двадцать процентов"
+          },
+          {
+            "text": "Клиент доволен функционалом, но обеспокоен сроками внедрения в 3 месяца.",
+            "evidence_quote": "Его устраивает функционал, но смущают сроки внедрения в три месяца"
+          },
+          {
+            "text": "Клиент запросил скидку и кейсы из похожих компаний.",
+            "evidence_quote": "Он попросил скидку и прислать кейсы похожих компаний"
+          },
+          {
+            "text": "Назначена встреча на следующий вторник в 10:00.",
+            "evidence_quote": "Встречу назначили на следующий вторник в десять утра"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ru-03",
+      "language": "ru",
+      "status": "succeeded",
+      "attempts": 1,
+      "latency_s": 141.3,
+      "provider": "llamacpp",
+      "model": "qwen3.5-4b-instruct-q4_k_m",
+      "fact_recall": 1.0,
+      "missed_facts": [],
+      "next_step_ok": true,
+      "key_points": 2,
+      "output": {
+        "schema": "call_summary.output.v1",
+        "summary": "Клиент сообщил, что проект заморожен до следующего года из-за сокращения бюджета. Он выразил нежелание возвращаться к разговору и просил не беспокоить.",
+        "language": "ru",
+        "generator": {
+          "model": "qwen3.5-4b-instruct-q4_k_m",
+          "is_mock": false,
+          "provider": "llamacpp"
+        },
+        "next_step": null,
+        "key_points": [
+          {
+            "text": "Проект заморожен до следующего года из-за сокращения бюджета.",
+            "evidence_quote": "проект заморожен до следующего года из-за сокращения бюджета"
+          },
+          {
+            "text": "Клиент не хочет возвращаться к разговору.",
+            "evidence_quote": "Возвращаться к разговору он пока не хочет"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ru-04",
+      "language": "ru",
+      "status": "succeeded",
+      "attempts": 1,
+      "latency_s": 139.2,
+      "provider": "llamacpp",
+      "model": "qwen3.5-4b-instruct-q4_k_m",
+      "fact_recall": 1.0,
+      "missed_facts": [],
+      "next_step_ok": true,
+      "key_points": 4,
+      "output": {
+        "schema": "call_summary.output.v1",
+        "summary": "Клиент заинтересован в тарифе для 10 пользователей и требует интеграцию с WhatsApp и телефонией, так как сейчас теряет заявки при ведении клиентов в Excel. Стороны договорились о проведении демонстрации в четверг, и продавец обещал отправить ссылку на встречу.",
+        "language": "ru",
+        "generator": {
+          "model": "qwen3.5-4b-instruct-q4_k_m",
+          "is_mock": false,
+          "provider": "llamacpp"
+        },
+        "next_step": {
+          "text": "Отправка ссылки на демонстрацию в четверг.",
+          "evidence_quote": "Договорились провести демонстрацию в четверг, я отправлю ссылку на встречу."
+        },
+        "key_points": [
+          {
+            "text": "Клиент интересуется тарифом для десяти пользователей.",
+            "evidence_quote": "Клиент интересуется тарифом для десяти пользователей."
+          },
+          {
+            "text": "Клиент требует интеграцию с WhatsApp и телефонией.",
+            "evidence_quote": "Ему важна интеграция с WhatsApp и телефонией."
+          },
+          {
+            "text": "Клиент теряет заявки из-за ведения клиентов в Excel.",
+            "evidence_quote": "Сейчас они ведут клиентов в Excel и теряют заявки."
+          },
+          {
+            "text": "Согласована демонстрация в четверг.",
+            "evidence_quote": "Договорились провести демонстрацию в четверг, я отправлю ссылку на встречу."
+          }
+        ]
+      }
+    },
+    {
+      "id": "ky-01",
+      "language": "ky",
+      "status": "succeeded",
+      "attempts": 1,
+      "latency_s": 290.9,
+      "provider": "llamacpp",
+      "model": "qwen3.5-4b-instruct-q4_k_m",
+      "fact_recall": 1.0,
+      "missed_facts": [],
+      "next_step_ok": true,
+      "key_points": 3,
+      "output": {
+        "schema": "call_summary.output.v1",
+        "summary": "Чаттар менен Нурлан атындагы клиентти куттуктадым. Клиент 1С менен интеграция жасоону сунуштады, бирок бюджет азыр бекитилген эмес. Келишимге ылайык, жума күнү кайра чалуу жана коммерциялык сунуш жөнөтүү пландалды.",
+        "language": "ky",
+        "generator": {
+          "model": "qwen3.5-4b-instruct-q4_k_m",
+          "is_mock": false,
+          "provider": "llamacpp"
+        },
+        "next_step": {
+          "text": "Жума күнү кайра чалуу жана коммерциялык сунуш жөнөтүү.",
+          "evidence_quote": "Жума күнү кайра чалып, коммерциялык сунуш жөнөтөм деп макулдаштык"
+        },
+        "key_points": [
+          {
+            "text": "Клиенттин негизги талабы: 1С программасына интеграция жасоо.",
+            "evidence_quote": "Кардарга 1С менен интеграция керек"
+          },
+          {
+            "text": "Клиенттин бюджеттик пландары азыр аныкталган эмес.",
+            "evidence_quote": "Бюджет азырынча бекитиле элек"
+          },
+          {
+            "text": "Келишимге ылайык, жума күнү кайра чалуу жана коммерциялык сунуш жөнөтүү пландалды.",
+            "evidence_quote": "Жума күнү кайра чалып, коммерциялык сунуш жөнөтөм деп макулдаштык"
+          }
+        ]
+      }
+    },
+    {
+      "id": "ky-02",
+      "language": "ky",
+      "status": "succeeded",
+      "attempts": 1,
+      "latency_s": 171.7,
+      "provider": "llamacpp",
+      "model": "qwen3.5-4b-instruct-q4_k_m",
+      "fact_recall": 1.0,
+      "missed_facts": [],
+      "next_step_ok": true,
+      "key_points": 3,
+      "output": {
+        "schema": "call_summary.output.v1",
+        "summary": "Кардар бааны кымбат деп айтып, WhatsApp менен иштөөгө макул болду. Жолугушуу уюштурулду.",
+        "language": "ky",
+        "generator": {
+          "model": "qwen3.5-4b-instruct-q4_k_m",
+          "is_mock": false,
+          "provider": "llamacpp"
+        },
+        "next_step": {
+          "text": "Шейшемби күнү жолугушуу.",
+          "evidence_quote": "Шейшемби күнү жолугушууга макул болдук"
+        },
+        "key_points": [
+          {
+            "text": "Кардар бааны кымбат деп баалады.",
+            "evidence_quote": "Кардар баа кымбат экенин айтты"
+          },
+          {
+            "text": "WhatsApp аркылуу иштөө маанилүү деп айтылды.",
+            "evidence_quote": "Ага WhatsApp менен иштөө маанилүү"
+          },
+          {
+            "text": "Жолугушуу уюштурулду.",
+            "evidence_quote": "Шейшемби күнү жолугушууга макул болдук"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-01",
+      "language": "en",
+      "status": "succeeded",
+      "attempts": 1,
+      "latency_s": 116.8,
+      "provider": "llamacpp",
+      "model": "qwen3.5-4b-instruct-q4_k_m",
+      "fact_recall": 1.0,
+      "missed_facts": [],
+      "next_step_ok": true,
+      "key_points": 4,
+      "output": {
+        "schema": "call_summary.output.v1",
+        "summary": "The client, Northwind, requires a CRM solution for 25 sales reps with a data migration from HubSpot. The budget for this quarter is approved. The salesperson agreed to send a proposal by Wednesday.",
+        "language": "en",
+        "generator": {
+          "model": "qwen3.5-4b-instruct-q4_k_m",
+          "is_mock": false,
+          "provider": "llamacpp"
+        },
+        "next_step": {
+          "text": "Send proposal by Wednesday",
+          "evidence_quote": "I will send a proposal by Wednesday"
+        },
+        "key_points": [
+          {
+            "text": "Client requirement: CRM for 25 sales reps",
+            "evidence_quote": "They need a CRM for a team of 25 sales reps"
+          },
+          {
+            "text": "Client requirement: Data migration from HubSpot",
+            "evidence_quote": "want to migrate data from HubSpot"
+          },
+          {
+            "text": "Budget status: Approved for this quarter",
+            "evidence_quote": "Budget is approved for this quarter"
+          },
+          {
+            "text": "Agreement: Proposal to be sent by Wednesday",
+            "evidence_quote": "I will send a proposal by Wednesday"
+          }
+        ]
+      }
+    },
+    {
+      "id": "en-02",
+      "language": "en",
+      "status": "succeeded",
+      "attempts": 1,
+      "latency_s": 66.4,
+      "provider": "llamacpp",
+      "model": "qwen3.5-4b-instruct-q4_k_m",
+      "fact_recall": 1.0,
+      "missed_facts": [],
+      "next_step_ok": true,
+      "key_points": 2,
+      "output": {
+        "schema": "call_summary.output.v1",
+        "summary": "The client indicated they are no longer interested in our services because they have already signed a contract with another vendor last week. They were polite during the conversation but made it clear they have moved forward with a different provider.",
+        "language": "en",
+        "generator": {
+          "model": "qwen3.5-4b-instruct-q4_k_m",
+          "is_mock": false,
+          "provider": "llamacpp"
+        },
+        "next_step": null,
+        "key_points": [
+          {
+            "text": "The client is not interested.",
+            "evidence_quote": "They were polite but are not interested anymore."
+          },
+          {
+            "text": "The client has signed with another vendor.",
+            "evidence_quote": "they already signed with another vendor last week."
+          }
+        ]
+      }
+    }
+  ]
+}

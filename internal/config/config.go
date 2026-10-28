@@ -28,6 +28,9 @@ type Common struct {
 	LogLevel    string
 	DatabaseURL string // application role (subject to row-level security)
 	Providers   []string
+	// Local llama.cpp server, used when Providers contains "llamacpp".
+	LlamaCppURL   string
+	LlamaCppModel string
 }
 
 // Gateway configures the HTTP gateway.
@@ -148,14 +151,24 @@ func (l *loader) common() Common {
 	default:
 		l.fail("AI_LOG_LEVEL must be debug, info, warn or error")
 	}
-	for _, p := range c.Providers {
-		switch strings.TrimSpace(p) {
+	for i, p := range c.Providers {
+		c.Providers[i] = strings.TrimSpace(p)
+		switch c.Providers[i] {
 		case "mock":
 			if c.Env == EnvProduction {
 				l.fail("AI_MODEL_PROVIDERS must not enable the mock provider in production")
 			}
+		case "llamacpp":
+			c.LlamaCppURL = l.str("AI_LLAMACPP_URL", "")
+			c.LlamaCppModel = l.str("AI_LLAMACPP_MODEL", "local-gguf")
+			if !strings.HasPrefix(c.LlamaCppURL, "http://") && !strings.HasPrefix(c.LlamaCppURL, "https://") {
+				l.fail("AI_LLAMACPP_URL must be an http(s) URL when the llamacpp provider is enabled")
+			}
+			if len(c.LlamaCppModel) > 128 {
+				l.fail("AI_LLAMACPP_MODEL must be at most 128 characters")
+			}
 		default:
-			l.fail("AI_MODEL_PROVIDERS contains an unknown provider (available: mock)")
+			l.fail("AI_MODEL_PROVIDERS contains an unknown provider (available: mock, llamacpp)")
 		}
 	}
 	if c.Env == EnvProduction && c.DatabaseURL != "" && !strings.Contains(c.DatabaseURL, "sslmode=verify-full") {
@@ -220,8 +233,9 @@ func loadOrchestrator(l *loader, maxJobTimeout time.Duration) (Orchestrator, err
 		WorkerID:     l.str("AI_WORKER_ID", fmt.Sprintf("%s-%d", host, os.Getpid())),
 		Concurrency:  l.integer("AI_WORKER_CONCURRENCY", 4, 1, 256),
 		PollInterval: l.duration("AI_WORKER_POLL_INTERVAL", time.Second),
-		Lease:        l.duration("AI_WORKER_LEASE", 5*time.Minute),
-		HealthAddr:   l.str("AI_WORKER_HEALTH_ADDR", ":8091"),
+		// Must outlive the longest job timeout; a crashed worker's job waits this long.
+		Lease:      l.duration("AI_WORKER_LEASE", 15*time.Minute),
+		HealthAddr: l.str("AI_WORKER_HEALTH_ADDR", ":8091"),
 	}
 	if o.Lease < maxJobTimeout+30*time.Second {
 		l.fail("AI_WORKER_LEASE must exceed the longest job timeout (%s) by at least 30s", maxJobTimeout)

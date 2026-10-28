@@ -47,6 +47,8 @@ func TestGatewayRejectsUnsafeSettings(t *testing.T) {
 		"same previous key":    {"AI_AUTH_HS256_KEY_PREVIOUS": goodKey},
 		"unknown env":          {"AI_ENV": "staging"},
 		"unknown provider":     {"AI_MODEL_PROVIDERS": "openai"},
+		"llamacpp without url": {"AI_MODEL_PROVIDERS": "llamacpp"},
+		"llamacpp bad url":     {"AI_MODEL_PROVIDERS": "llamacpp", "AI_LLAMACPP_URL": "llm:8080"},
 		"mock in production":   {"AI_ENV": "production", "AI_DATABASE_URL": "postgres://x/y?sslmode=verify-full"},
 		"no tls in production": {"AI_ENV": "production", "AI_MODEL_PROVIDERS": "mock"},
 		"bad duration":         {"AI_REQUEST_TIMEOUT": "soon"},
@@ -62,6 +64,27 @@ func TestGatewayRejectsUnsafeSettings(t *testing.T) {
 				t.Fatal("expected a validation error")
 			}
 		})
+	}
+}
+
+func TestLlamaCppProvider(t *testing.T) {
+	env := base()
+	env["AI_MODEL_PROVIDERS"] = " llamacpp , mock "
+	env["AI_LLAMACPP_URL"] = "http://llm:8080"
+	env["AI_LLAMACPP_MODEL"] = "qwen3.5-4b-q4_k_m"
+	g, err := loadGateway(envLoader(env, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if g.Providers[0] != "llamacpp" || g.LlamaCppURL != "http://llm:8080" || g.LlamaCppModel != "qwen3.5-4b-q4_k_m" {
+		t.Fatalf("unexpected %+v", g.Common)
+	}
+	// A real model may serve production; only the mock is forbidden there.
+	env["AI_ENV"] = "production"
+	env["AI_MODEL_PROVIDERS"] = "llamacpp"
+	env["AI_DATABASE_URL"] = "postgres://x/y?sslmode=verify-full"
+	if _, err := loadGateway(envLoader(env, nil)); err != nil {
+		t.Fatalf("llamacpp must be allowed in production: %v", err)
 	}
 }
 

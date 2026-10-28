@@ -18,7 +18,7 @@ func OperationsDigestV1() Definition {
 		InputSchema:  "operations_digest.input.v1",
 		OutputSchema: "operations_digest.output.v1",
 		MaxAttempts:  3,
-		Timeout:      60 * time.Second,
+		Timeout:      10 * time.Minute, // see CallSummaryV1 for the measured speed
 		Ground:       groundOperationsDigest,
 	}
 }

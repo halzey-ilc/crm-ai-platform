@@ -12,7 +12,7 @@ BODY='{"type":"operations.digest.v1","input":{"language":"ru",
              {"ref":"task-1","kind":"overdue_task","age_days":3},{"ref":"deal-1","kind":"deal_without_next_step","age_days":6}]}}'
 ID=$(curl -fsS -X POST "$BASE/v1/jobs" -H "Authorization: Bearer $TOK" -H "Idempotency-Key: ops-$(date +%s%N)" \
   -d "$BODY" | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["id"])')
-for _ in $(seq 1 50); do
+for _ in $(seq 1 3000); do
   OUT=$(curl -fsS "$BASE/v1/jobs/$ID" -H "Authorization: Bearer $TOK")
   [ "$(echo "$OUT" | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["status"])')" = succeeded ] && break
   sleep 0.2

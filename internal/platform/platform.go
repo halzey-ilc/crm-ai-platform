@@ -6,13 +6,16 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"crmai/internal/jobtypes"
 	"crmai/internal/modelgw"
+	"crmai/internal/modelgw/llamacpp"
 	"crmai/internal/modelgw/mock"
 )
 
@@ -26,12 +29,23 @@ func Logger(service, level string) *slog.Logger {
 // ModelGateway routes every task the registry needs to an enabled provider.
 // Startup fails if a task has no provider, so a misconfigured worker never
 // claims jobs it cannot run.
-func ModelGateway(reg *jobtypes.Registry, enabled []string) (*modelgw.Gateway, error) {
+//
+// Providers are tried in the configured order: the first enabled provider that
+// supports a task serves it.
+func ModelGateway(reg *jobtypes.Registry, cfg Providers) (*modelgw.Gateway, error) {
 	var providers []modelgw.Provider
-	for _, name := range enabled {
+	for _, name := range cfg.Enabled {
 		switch strings.TrimSpace(name) {
 		case mock.Name:
 			providers = append(providers, mock.Provider{})
+		case llamacpp.Name:
+			providers = append(providers, llamacpp.Provider{
+				BaseURL: cfg.LlamaCppURL,
+				Model:   cfg.LlamaCppModel,
+				// Per-call deadlines come from the job's context; this is a backstop.
+				HTTP: &http.Client{Timeout: 10 * time.Minute},
+				Log:  cfg.Log,
+			})
 		default:
 			return nil, fmt.Errorf("unknown provider %q", name)
 		}
@@ -49,6 +63,14 @@ func ModelGateway(reg *jobtypes.Registry, enabled []string) (*modelgw.Gateway, e
 		}
 	}
 	return modelgw.New(routes)
+}
+
+// Providers selects and configures model providers.
+type Providers struct {
+	Enabled       []string
+	LlamaCppURL   string
+	LlamaCppModel string
+	Log           *slog.Logger
 }
 
 // SignalContext is cancelled on SIGINT/SIGTERM.

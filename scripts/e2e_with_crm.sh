@@ -13,7 +13,7 @@ echo "CRM call: $CALL_ID"
 STATUS=$(api -o /dev/null -w '%{http_code}' -X POST "$CRM_URL/api/v1/ai/calls/$CALL_ID/summary/")
 [ "$STATUS" = 202 ] || { echo "summary request returned $STATUS"; exit 1; }
 
-for _ in $(seq 1 60); do
+for _ in $(seq 1 900); do
   BODY=$(api "$CRM_URL/api/v1/ai/calls/$CALL_ID/summary/")
   case "$(echo "$BODY" | json 'd["status"]')" in succeeded|failed) break ;; esac
   sleep 1

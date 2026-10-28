@@ -27,6 +27,17 @@ curl -s -X POST localhost:8090/v1/jobs -H "Authorization: Bearer $TOK" \
   -d '{"type":"call.summary.v1","input":{"transcript":"Добрый день. Перезвоню завтра.","language":"ru"}}'
 ```
 
+### С локальной моделью вместо mock ✅
+
+```bash
+make up-llm   # скачивает модель (3 ГБ, sha256 проверяется), поднимает llama.cpp + orchestrator
+make up       # вернуться на mock-провайдер
+python3 -I evaluation/run_call_summary_eval.py --out=evaluation/reports/run.json
+```
+
+Нужно ~4 ГБ свободной RAM. На ноутбуке резюме занимает 2–4 минуты. Другие тяжёлые
+процессы (minikube, второй стек) замедляют модель в разы.
+
 ### Вместе с CRM ✅
 
 ```bash

@@ -47,7 +47,7 @@ func createJob(t *testing.T, tenant, key string) jobs.Job {
 func newWorker(t *testing.T, id string) *orchestrator.Worker {
 	t.Helper()
 	types := testutil.Registry(t)
-	models, err := platform.ModelGateway(types, []string{"mock"})
+	models, err := platform.ModelGateway(types, platform.Providers{Enabled: []string{"mock"}})
 	if err != nil {
 		t.Fatal(err)
 	}

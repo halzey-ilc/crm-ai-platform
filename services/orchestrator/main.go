@@ -49,7 +49,12 @@ func run() error {
 		return fmt.Errorf("invalid configuration:\n%w", err)
 	}
 	log := platform.Logger("orchestrator", cfg.LogLevel)
-	models, err := platform.ModelGateway(types, cfg.Providers)
+	models, err := platform.ModelGateway(types, platform.Providers{
+		Enabled:       cfg.Providers,
+		LlamaCppURL:   cfg.LlamaCppURL,
+		LlamaCppModel: cfg.LlamaCppModel,
+		Log:           log,
+	})
 	if err != nil {
 		return err
 	}

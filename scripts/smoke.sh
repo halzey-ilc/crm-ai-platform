@@ -18,7 +18,7 @@ REPLAY=$(curl -fsS -o /dev/null -w '%{http_code}' -X POST "$BASE/v1/jobs" -H "Au
        -H "Idempotency-Key: $KEY" -d "$BODY")
 [ "$REPLAY" = 200 ] || { echo "idempotent replay returned $REPLAY"; exit 1; }
 
-for _ in $(seq 1 50); do
+for _ in $(seq 1 900); do
   STATUS=$(curl -fsS "$BASE/v1/jobs/$ID" -H "Authorization: Bearer $TOK" | python3 -I -c 'import json,sys; print(json.load(sys.stdin)["status"])')
   [ "$STATUS" = succeeded ] && break
   sleep 0.2
@@ -29,8 +29,11 @@ curl -fsS "$BASE/v1/jobs/$ID" -H "Authorization: Bearer $TOK" | python3 -I -c '
 import json, sys
 j = json.load(sys.stdin)
 r = j["result"]
-assert r["provider"] == "mock" and r["output"]["generator"]["is_mock"] is True
-print("result:", json.dumps(r["output"], ensure_ascii=False))'
+# Provenance must be consistent whichever provider served the job.
+assert r["output"]["generator"]["provider"] == r["provider"]
+assert r["output"]["generator"]["is_mock"] is (r["provider"] == "mock")
+print("provider:", r["provider"], "| model:", r["model"])
+print("result:", json.dumps(r["output"], ensure_ascii=False, indent=2))'
 
 CROSS=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/v1/jobs/$ID" -H "Authorization: Bearer $OTHER")
 [ "$CROSS" = 404 ] || { echo "cross-tenant read returned $CROSS"; exit 1; }

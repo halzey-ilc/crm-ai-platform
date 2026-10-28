@@ -1,0 +1,33 @@
+ru-01  succeeded recall=1.0  next_step_ok=True  201.9s
+ru-02  succeeded recall=1.0  next_step_ok=True  179.3s
+ru-03  succeeded recall=1.0  next_step_ok=True  141.3s
+ru-04  succeeded recall=1.0  next_step_ok=True  139.2s
+ky-01  succeeded recall=1.0  next_step_ok=True  290.9s
+ky-02  succeeded recall=1.0  next_step_ok=True  171.7s
+en-01  succeeded recall=1.0  next_step_ok=True  116.8s
+en-02  succeeded recall=1.0  next_step_ok=True  66.4s
+{
+  "dataset": "call_summary.synthetic.v1.jsonl",
+  "cases": 8,
+  "succeeded": 8,
+  "fact_recall_mean": 1.0,
+  "next_step_accuracy": 1.0,
+  "latency_s_median": 156.5,
+  "by_language": {
+    "en": {
+      "succeeded": 2,
+      "fact_recall_mean": 1.0,
+      "next_step_accuracy": 1.0
+    },
+    "ky": {
+      "succeeded": 2,
+      "fact_recall_mean": 1.0,
+      "next_step_accuracy": 1.0
+    },
+    "ru": {
+      "succeeded": 4,
+      "fact_recall_mean": 1.0,
+      "next_step_accuracy": 1.0
+    }
+  }
+}

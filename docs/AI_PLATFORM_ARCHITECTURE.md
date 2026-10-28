@@ -51,7 +51,8 @@ AI Platform — отдельный проект, интеллектуальна�
 | Миграции | Go | `services/migrate` | ✅ |
 | Training Toolkit | Python | `training/toolkit` | ✅ (синтетический эксперимент) |
 | Model Registry | — | — | 🟠 метаданные запуска в `manifest.json`; реестр как сервис 📐 |
-| Model Serving (C++ runtime) | C++ | — | 📐 этап G |
+| Model Serving (C++ runtime) | C++ | llama.cpp server (готовый движок), `deployments/local/compose.llm.yaml` | 🟠 локально ✅ ([ADR-006](DECISIONS/ADR-006-local-llm-llamacpp.md)); registry, откат, GPU 📐 |
+| Провайдер локальной LLM | Go | `internal/modelgw/llamacpp` | ✅ |
 | Audio processing (Rust) | Rust | — | 📐 только при измеримой необходимости |
 | AI Data Platform (каталог датасетов) | — | — | 🟠 версия + отчёт качества в Toolkit; каталог 📐 |
 | AI Evaluation (регрессии моделей) | — | — | 🟠 метрики эксперимента; регрессионные наборы 📐 |

@@ -1,0 +1,52 @@
+# Optional overlay: a real local model instead of the mock provider.
+#
+#   make up-llm      # = docker compose -f compose.yaml -f compose.llm.yaml up -d
+#
+# Model: Qwen3.5-4B (Apache-2.0), GGUF Q4_K_M from bartowski/Qwen_Qwen3.5-4B-GGUF,
+# sha256 13c16f42…a983, downloaded by scripts/get_model.sh into $AI_MODELS_DIR
+# (outside git). Runtime: llama.cpp server (MIT), CPU only, image pinned by digest.
+name: crm-ai-platform
+
+services:
+  llm:
+    image: ghcr.io/ggml-org/llama.cpp:server@sha256:8052c13edd987de8858f8150031e025ac3d66823f09cf3ec8220899c4abce220
+    command:
+      - -m
+      - /models/Qwen_Qwen3.5-4B-Q4_K_M.gguf
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --ctx-size
+      - "8192"
+      # One request at a time: on CPU, parallel requests only slow each other down.
+      - --parallel
+      - "1"
+      - --threads
+      # Physical cores, not hyperthreads: on the dev laptop (i7-1065G7, 4 cores) 4 beat 6.
+      - "${AI_LLM_THREADS:-4}"
+      - --jinja
+      - --no-webui
+    volumes:
+      - ${AI_MODELS_DIR:-${HOME}/.local/share/crm-ai-platform/models}:/models:ro
+    # Not published on the host: only the orchestrator talks to the model.
+    mem_limit: 5g
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+  orchestrator:
+    environment:
+      AI_MODEL_PROVIDERS: llamacpp
+      AI_LLAMACPP_URL: http://llm:8080
+      AI_LLAMACPP_MODEL: qwen3.5-4b-instruct-q4_k_m
+      AI_WORKER_CONCURRENCY: "1"
+    depends_on:
+      llm: { condition: service_healthy }

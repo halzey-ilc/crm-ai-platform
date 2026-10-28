@@ -18,8 +18,10 @@ func CallSummaryV1() Definition {
 		InputSchema:  "call_summary.input.v1",
 		OutputSchema: "call_summary.output.v1",
 		MaxAttempts:  3,
-		Timeout:      60 * time.Second,
-		Ground:       groundCallSummary,
+		// Measured: a 4B model on a 4-core laptop CPU generates ~2 tokens/s, so a
+		// summary takes 2-4 minutes. The job is asynchronous; the CRM polls for it.
+		Timeout: 10 * time.Minute,
+		Ground:  groundCallSummary,
 	}
 }
 
