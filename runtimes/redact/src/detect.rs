@@ -18,6 +18,8 @@ pub enum Kind {
     /// Kyrgyz passport / ID card number (two letters + 7 digits).
     Passport,
     Phone,
+    /// Personal name, found by rules (see `names`), not by a trained model.
+    Name,
 }
 
 impl Kind {
@@ -30,10 +32,11 @@ impl Kind {
             Kind::KzIin => "KZ_IIN",
             Kind::Passport => "PASSPORT",
             Kind::Phone => "PHONE",
+            Kind::Name => "NAME",
         }
     }
 
-    pub const ALL: [Kind; 7] = [
+    pub const ALL: [Kind; 8] = [
         Kind::Email,
         Kind::Card,
         Kind::Iban,
@@ -41,6 +44,7 @@ impl Kind {
         Kind::KzIin,
         Kind::Passport,
         Kind::Phone,
+        Kind::Name,
     ];
 }
 
@@ -172,7 +176,7 @@ fn phone_ok(s: &str) -> bool {
 }
 
 /// Every detected span, longest-and-earliest first, without overlaps.
-/// Order of precedence when spans overlap: emails, then checksummed ids, then phones.
+/// Order of precedence when spans overlap: emails, then checksummed ids, then phones, then names.
 pub fn detect(text: &str) -> Vec<Span> {
     let mut spans: Vec<Span> = Vec::new();
     let mut push = |kind: Kind, re: &Regex, valid: &dyn Fn(&str) -> bool| {
@@ -193,6 +197,14 @@ pub fn detect(text: &str) -> Vec<Span> {
     push(Kind::KzIin, &DIGITS_12, &kz_iin_ok);
     push(Kind::Passport, &PASSPORT, &|_| true);
     push(Kind::Phone, &PHONE, &phone_ok);
+    // Names last: on overlap a checksummed id or a phone wins.
+    for (start, end) in crate::names::find(text) {
+        spans.push(Span {
+            kind: Kind::Name,
+            start,
+            end,
+        });
+    }
 
     // Keep the first-registered (higher precedence) span when two overlap. Kept
     // spans never overlap each other, so a new span can only collide with the kept

@@ -40,7 +40,8 @@ fn detects_each_kind_in_russian_text() {
             Kind::KgPin,
             Kind::KzIin,
             Kind::Passport,
-            Kind::Phone
+            Kind::Phone,
+            Kind::Name // "Айбек"
         ]
     );
 }

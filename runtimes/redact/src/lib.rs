@@ -10,9 +10,12 @@
 //!   (needed to train on histories) without the value being recoverable.
 //!
 //! Reports contain counts per kind only, never the values.
-//! Not covered: personal names and addresses (they need a NER model).
+//! Names are found by rules (`names`): common first names, patronymics, surnames
+//! next to them, Kyrgyz "уулу"/"кызы". Names outside the dictionary and addresses
+//! are not covered; that needs a NER model trained on labelled real data.
 
 pub mod detect;
+pub mod names;
 
 use hmac::{Hmac, Mac};
 use sha2::Sha256;
@@ -92,7 +95,7 @@ impl Redactor {
 /// `Ivan@Mail.kg` vs `ivan@mail.kg`) must map to the same token.
 fn normalise(kind: Kind, raw: &str) -> String {
     match kind {
-        Kind::Email => raw.to_lowercase(),
+        Kind::Email | Kind::Name => raw.to_lowercase(),
         Kind::Passport | Kind::Iban => raw.chars().filter(|c| !c.is_whitespace()).collect(),
         _ => raw.chars().filter(char::is_ascii_digit).collect(),
     }

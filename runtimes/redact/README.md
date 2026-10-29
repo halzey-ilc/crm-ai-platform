@@ -14,11 +14,15 @@ forbids personal data in training sets and external calls without a policy.
 | `KG_PIN` | 14 digits | sex digit 1/2 + valid birth date DDMMYYYY |
 | `KZ_IIN` | 12 digits | birth date YYMMDD, century digit 1–6, check digit |
 | `PASSPORT` | `ID`/`AN`/`AC`/`PE`/`AL` + 7 digits | — |
+| `NAME` | capitalised words (rules in `src/names.rs`) | a known first name (with case endings), a -бек/-гуль name, a patronymic or «уулу»/«кызы» must be in the run |
 
-When candidates overlap, the more specific kind wins (e-mail > checksummed ids > phone).
+When candidates overlap, the more specific kind wins (e-mail > checksummed ids > phone > name).
 
-**Not covered:** names and addresses. They need a NER model, and until then
-free text must be treated as still containing personal data.
+**Names are rule-based.** Names outside the dictionary are missed; on synthetic holdout
+sentences precision is 1.00 and recall 0.78 (`cargo test --test names_eval -- --nocapture`).
+
+**Not covered:** addresses. Free text must still be treated as containing personal data
+until a NER model trained on labelled real examples exists.
 
 ## Usage
 
