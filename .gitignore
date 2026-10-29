@@ -21,6 +21,7 @@ __pycache__/
 # Experiment outputs, datasets and model artifacts live outside git
 training/toolkit/runs/
 training/toolkit/data/
+training/toolkit/registry/
 *.pkl
 *.onnx
 *.gguf

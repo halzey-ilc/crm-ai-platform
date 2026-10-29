@@ -25,9 +25,34 @@
 | Обучение | baseline (prior) + логистическая регрессия (scikit-learn) | ✅ |
 | Метрики | ROC AUC, PR AUC, Brier, log loss, precision/recall/F1 при пороге 0.5, калибровка по 10 корзинам, качество по группам (source) | ✅ |
 | Артефакты | `runs/<run_id>/`: `manifest.json`, `quality.json`, `metrics.json`, `model.pkl` (+sha256), `report.md` | ✅ |
-| Статус в реестре | Всегда `candidate`, `approved_for_deployment: false` | ✅ |
+| Статус после обучения | Всегда `candidate`, `approved_for_deployment: false` | ✅ |
+| Реестр моделей | `crmai-train registry ...`: версии v1, v2…, статусы candidate → approved (staging/production) → retired, откат, журнал событий с цепочкой хешей (`registry.py`) | ✅ |
 | Нейросети (PyTorch) | Добавится с первой задачей, где они нужны (классификация звонков) | 📐 |
-| Каталог датасетов / registry как сервис | | 📐 |
+| Каталог датасетов; реестр как сервис (PostgreSQL + объектное хранилище) | | 📐 |
+
+### Реестр моделей
+
+```bash
+export CRMAI_REGISTRY=/srv/crmai/registry       # вне git
+crmai-train registry register runs/<run_id>      # копия артефакта, версия v1, статус candidate
+crmai-train registry approve lead_scoring v1 --stage staging --by "Имя" --reason "почему"
+crmai-train registry active lead_scoring --stage staging
+crmai-train registry rollback lead_scoring --stage staging --by "Имя" --reason "почему"
+crmai-train registry verify                      # цепочка журнала и sha256 всех артефактов
+```
+
+- **Одобряет только человек**: `--by` и `--reason` обязательны и пишутся в журнал. После
+  обучения модель никогда не одобряется автоматически.
+- Одобрение отклоняется, если:
+  - sha256 артефакта не совпадает с манифестом;
+  - модель не лучше baseline на test;
+  - для `production` модель обучена на синтетике или владелец данных не объявил
+    `contains_real_data: true`.
+- Активная версия этапа — последняя одобренная и не выведенная. Откат выводит активную
+  версию, и активной снова становится предыдущая.
+- Журнал `events.jsonl` только дополняется. Каждая запись содержит хеш предыдущей, поэтому
+  правка или перестановка записей обнаруживается `verify`.
+- Реестр ничего не разворачивает: сервинг читает активную версию явно (📐 этап G — сервинг).
 
 ### Запуск
 
