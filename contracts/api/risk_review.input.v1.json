@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "risk_review.input.v1",
+  "description": "Signals computed by the CRM's deterministic risk rules. A signal is a reason for a person to check, not evidence. Ids and numbers only: no names, amounts or free text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "window_days", "counts", "signals"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "window_days": { "type": "integer", "minimum": 1, "maximum": 365 },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["won_without_activity", "reopened_after_close", "amount_outlier", "bulk_disqualification", "deals_lost_burst", "invoices_voided"],
+      "properties": {
+        "won_without_activity": { "type": "integer", "minimum": 0 },
+        "reopened_after_close": { "type": "integer", "minimum": 0 },
+        "amount_outlier": { "type": "integer", "minimum": 0 },
+        "bulk_disqualification": { "type": "integer", "minimum": 0 },
+        "deals_lost_burst": { "type": "integer", "minimum": 0 },
+        "invoices_voided": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "signals": {
+      "type": "array",
+      "maxItems": 200,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "kind", "value", "threshold"],
+        "properties": {
+          "ref": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$" },
+          "kind": { "$ref": "#/$defs/kind" },
+          "value": { "type": "number" },
+          "threshold": { "type": "number" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "kind": { "type": "string", "enum": ["won_without_activity", "reopened_after_close", "amount_outlier", "bulk_disqualification", "deals_lost_burst", "invoices_voided"] }
+  }
+}

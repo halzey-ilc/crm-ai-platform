@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "risk_review.output.v1",
+  "description": "A neutral explanation of risk signals for an owner or admin: what each kind means and what to check. It never states that anyone broke a rule; is_evidence is always false.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "headline", "items", "checks", "insufficient_data", "is_evidence", "language", "generator"],
+  "properties": {
+    "schema": { "const": "risk_review.output.v1" },
+    "headline": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "items": {
+      "type": "array",
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "text", "signal_refs"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["won_without_activity", "reopened_after_close", "amount_outlier", "bulk_disqualification", "deals_lost_burst", "invoices_voided"] },
+          "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "signal_refs": { "$ref": "#/$defs/refs" }
+        }
+      }
+    },
+    "checks": {
+      "type": "array",
+      "maxItems": 6,
+      "description": "What a person should verify, e.g. ask the deal owner whether contacts were logged elsewhere.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text", "signal_refs"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 500 },
+          "signal_refs": { "$ref": "#/$defs/refs" }
+        }
+      }
+    },
+    "insufficient_data": { "type": "boolean", "description": "True when there are no signals; items and checks are then empty." },
+    "is_evidence": { "const": false },
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "is_mock"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "is_mock": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "refs": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 10,
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$" }
+    }
+  }
+}

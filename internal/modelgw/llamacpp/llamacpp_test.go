@@ -243,6 +243,33 @@ func TestDealCoachDropsUngroundedPointsAndSkipsModelWhenEmpty(t *testing.T) {
 	}
 }
 
+func TestRiskReviewDropsAccusationsAndReplacesHeadline(t *testing.T) {
+	input := `{"language":"ru","window_days":30,
+	 "counts":{"won_without_activity":1,"reopened_after_close":0,"amount_outlier":0,"bulk_disqualification":1,"deals_lost_burst":0,"invoices_voided":0},
+	 "signals":[{"ref":"deal:a","kind":"won_without_activity","value":0,"threshold":0},
+	            {"ref":"user:u","kind":"bulk_disqualification","value":14,"threshold":10}]}`
+	answer := `{"headline":"Обнаружено мошенничество!",
+	 "items":[{"kind":"bulk_disqualification","text":"Сотрудник нарушает правила работы с лидами.","signal_refs":["user:u"]},
+	          {"kind":"won_without_activity","text":"Сделка выиграна без записанных контактов.","signal_refs":["deal:a","user:u"]}],
+	 "checks":[{"text":"Уточните, где записаны контакты.","signal_refs":["deal:a"]}]}`
+	srv := fakeServer(t, 200, answer, nil)
+	resp, err := invoke(t, srv.URL, "risk_review", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("risk_review.output.v1", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	out := string(resp.Output)
+	if strings.Contains(out, "мошенн") || strings.Contains(out, "наруш") {
+		t.Fatalf("accusatory texts must not be kept: %s", out)
+	}
+	if !strings.Contains(out, `"signal_refs":["deal:a"]`) || !strings.Contains(out, "без записанных контактов") {
+		t.Fatalf("the neutral item must stay, with refs of its kind only: %s", out)
+	}
+}
+
 func TestKpiExplanationDropsInventedNumbers(t *testing.T) {
 	input := `{"language":"en","period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
 	 "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},

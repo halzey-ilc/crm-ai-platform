@@ -57,7 +57,7 @@ func NewRegistry(schemas *contracts.Schemas, defs ...Definition) (*Registry, err
 
 // Builtin returns the registry with all job types shipped in this release.
 func Builtin(schemas *contracts.Schemas) (*Registry, error) {
-	return NewRegistry(schemas, CallSummaryV1(), OperationsDigestV1(), KpiExplanationV1(), MessageReplyV1(), DealCoachV1())
+	return NewRegistry(schemas, CallSummaryV1(), OperationsDigestV1(), KpiExplanationV1(), MessageReplyV1(), DealCoachV1(), RiskReviewV1())
 }
 
 func (r *Registry) Get(jobType string) (Definition, bool) {
