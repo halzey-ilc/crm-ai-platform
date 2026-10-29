@@ -50,7 +50,7 @@ AI Platform — отдельный проект, интеллектуальна�
 | Хранилище (PostgreSQL + RLS) | SQL/Go | `internal/store/postgres` | ✅ |
 | Миграции | Go | `services/migrate` | ✅ |
 | Training Toolkit | Python | `training/toolkit` | ✅ (синтетический эксперимент) |
-| Model Registry | — | — | 🟠 метаданные запуска в `manifest.json`; реестр как сервис 📐 |
+| Model Registry | Python | `training/toolkit` (`crmai-train registry`) | ✅ файловый реестр: версии, одобрение человеком, откат, журнал с цепочкой хешей; реестр как сервис 📐 |
 | Model Serving (C++ runtime) | C++ | llama.cpp server (готовый движок), `deployments/local/compose.llm.yaml` | 🟠 локально ✅ ([ADR-006](DECISIONS/ADR-006-local-llm-llamacpp.md)); registry, откат, GPU 📐 |
 | Провайдер локальной LLM | Go | `internal/modelgw/llamacpp` | ✅ |
 | Обезличивание данных | **Rust** | `runtimes/redact` (`crmai-redact`) | ✅ e-mail, телефоны, карты, IBAN, ПИН KG, ИИН KZ, паспорта; имена 📐 (нужна NER) |
