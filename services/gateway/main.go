@@ -66,6 +66,7 @@ func run() error {
 		Jobs:           jobs.NewService(store, types),
 		Types:          types,
 		Verifier:       verifier,
+		Knowledge:      store,
 		Ready:          store.Ready,
 		Log:            log,
 		RequestTimeout: cfg.RequestTimeout,

@@ -4,11 +4,11 @@
 остаётся источником истины для бизнес-данных и правил; AI Platform выполняет
 AI-задачи и возвращает проверенные структурированные результаты.
 
-> **Статус: первые версии всех AI-функций, кроме Knowledge Assistant; не production-ready.**
+> **Статус: первые версии всех 8 AI-направлений; не production-ready.**
 >
 > - **Работает:** gateway, очередь задач, orchestrator, изоляция компаний (RLS), Model Gateway
 >   с провайдерами `mock` и `llamacpp`, метрики Prometheus, очистка по сроку хранения.
-> - **Типы задач:** 8, у каждого проверка «без выдумок».
+> - **Типы задач:** 10 (с версиями), у каждого проверка «без выдумок».
 > - **CRM:** интеграция работает. CRM сама присылает данные и забирает результат, по
 >   умолчанию AI в CRM выключен.
 > - **Локальная модель:** Qwen3.5-4B на llama.cpp ([ADR-006](docs/DECISIONS/ADR-006-local-llm-llamacpp.md)).
@@ -29,6 +29,8 @@ AI-задачи и возвращает проверенные структур�
 | `deal.coach.v1` | Sales Coach | `scripts/e2e_coach.sh` |
 | `risk.review.v1` | Risk & Anomaly | `scripts/e2e_risk.sh` |
 | `agent.plan.v1` | Agent Runtime | `scripts/e2e_agent.sh` |
+| `agent.plan.v2` (встреча, этап сделки) | Agent Runtime | только unit-тесты (CRM не подключена) |
+| `knowledge.answer.v1` + `/v1/knowledge/*` | Knowledge Assistant | `scripts/smoke_knowledge.sh` (без CRM) |
 
 Контракты и правила проверки — [API_CONTRACTS.md](docs/API_CONTRACTS.md).
 Скрипты `e2e_*` используют локальную CRM (`../crm-platform`). `AI_USE_LLM=0` запускает их на

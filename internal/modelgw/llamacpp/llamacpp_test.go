@@ -328,6 +328,35 @@ func TestAgentPlanV2OffersStagesOnceAndDropsPastMeetings(t *testing.T) {
 	}
 }
 
+func TestKnowledgeAnswerKeepsQuotedStatementsOnly(t *testing.T) {
+	input := `{"language":"ru","question":"Какая скидка?","passages":[
+	 {"ref":"p#0","title":"Скидки","text":"Скидка для новых клиентов составляет не более 10 процентов."}]}`
+	answer := `{"statements":[
+	  {"text":"Не более 10%.","passage_ref":"p#0","quote":"скидка для  новых клиентов составляет не более 10 процентов"},
+	  {"text":"Скидка 20% для VIP.","passage_ref":"p#0","quote":"VIP-клиентам скидка 20 процентов"}]}`
+	var seen map[string]any
+	srv := fakeServer(t, 200, answer, &seen)
+	resp, err := invoke(t, srv.URL, "knowledge_answer", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("knowledge_answer.output.v1", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	out := string(resp.Output)
+	if strings.Contains(out, "VIP") || !strings.Contains(out, `"quote":"Скидка для новых клиентов составляет не более 10 процентов"`) {
+		t.Fatalf("only the verbatim-anchored statement may stay: %s", out)
+	}
+	called := false
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true }))
+	defer srv2.Close()
+	resp, err = invoke(t, srv2.URL, "knowledge_answer", `{"language":"ru","question":"x","passages":[]}`)
+	if err != nil || called || !strings.Contains(string(resp.Output), `"insufficient_data":true`) {
+		t.Fatalf("no passages must not call the model: called=%v err=%v", called, err)
+	}
+}
+
 func TestKpiExplanationDropsInventedNumbers(t *testing.T) {
 	input := `{"language":"en","period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
 	 "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},

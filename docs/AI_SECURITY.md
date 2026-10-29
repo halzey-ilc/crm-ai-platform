@@ -18,7 +18,7 @@ govulncheck уязвимости GO-2026-6629 и GO-2026-5970 в `golang.org/x/t
 | Идемпотентность | Ключи уникальны в пределах tenant — чужой ключ не возвращает чужую задачу | ✅ |
 | Воркер | Межтенантное чтение есть ровно в одном месте: `SECURITY DEFINER ai_claim_jobs`. Дальнейшая работа идёт в транзакции под tenant задачи | ✅ |
 | Кэш | Кэша нет. Когда появится, ключ обязательно начинается с tenant | 📐 |
-| Поиск / RAG | Фильтрация по tenant и правам **до** поиска | 📐 этап H (Knowledge Assistant) |
+| Поиск / RAG | Фильтрация по tenant (RLS) и меткам доступа **в том же SQL-запросе**, до ранжирования; модель видит только найденные разрешённые фрагменты | ✅ `TestKnowledgeSearchFiltersByAccessBeforeSearch`, `TestKnowledgeAskThroughHTTP`; метки задаёт CRM |
 | Внешние модели | Модель получает только вход задачи, созданной по токену этого tenant | ✅ (mock); 📐 политика для внешних провайдеров |
 
 Сервисная идентичность AI **не** даёт доступа ко всем компаниям: каждый токен
@@ -28,9 +28,16 @@ govulncheck уязвимости GO-2026-6629 и GO-2026-5970 в `golang.org/x/t
 
 Роль `ai_app`: `LOGIN NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`,
 права только `SELECT/INSERT/UPDATE` на `ai_job`, `SELECT/INSERT` на
-`ai_job_result`. **DELETE нет**: удаление — отдельная процедура
-([AI_DATA_GOVERNANCE.md](AI_DATA_GOVERNANCE.md)). DDL недоступен. ✅
+`ai_job_result`. **DELETE на задачи нет**: очистка идёт через узкую функцию
+`ai_purge_finished` ([AI_DATA_GOVERNANCE.md](AI_DATA_GOVERNANCE.md)). DDL недоступен. ✅
 `TestAppRoleHasNoDangerousPrivileges`.
+
+Исключение — документы Knowledge Assistant (`kb_document`, `kb_passage`): там DELETE есть.
+Документ, который CRM удалила или заменила, должен исчезнуть, а RLS по-прежнему ограничивает
+удаление строками своей компании.
+
+Запись документов требует отдельного scope `ai.knowledge.write`. Токен для заданий
+(`ai.jobs.*`) документы менять не может. ✅
 
 Миграции выполняет владелец схемы (`AI_DATABASE_OWNER_URL`), отдельным процессом `migrate`.
 

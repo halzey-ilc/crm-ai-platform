@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "knowledge_answer.input.v1",
+  "description": "A question and the passages found for it among the documents the asker may see. The gateway builds this input itself (POST /v1/knowledge/ask); the access filter is applied before search.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "question", "passages"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "question": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "passages": {
+      "type": "array",
+      "maxItems": 8,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "title", "text"],
+        "properties": {
+          "ref": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}#[0-9]{1,6}$" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 300 },
+          "text": { "type": "string", "minLength": 1, "maxLength": 4000 }
+        }
+      }
+    }
+  }
+}

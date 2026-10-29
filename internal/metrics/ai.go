@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -44,11 +45,15 @@ var idSegment = regexp.MustCompile(`/[0-9a-fA-F-]{36}(/|$)`)
 var knownRoutes = map[string]bool{
 	"/v1/jobs": true, "/v1/jobs/:id": true, "/v1/jobs/:id/cancel": true, "/v1/job-types": true,
 	"/health/live": true, "/health/ready": true,
+	"/v1/knowledge/ask": true, "/v1/knowledge/documents/:ref": true,
 }
 
 // Route turns a path into a low-cardinality label: ids become ":id".
 func Route(path string) string {
 	route := idSegment.ReplaceAllString(path, "/:id$1")
+	if strings.HasPrefix(route, "/v1/knowledge/documents/") {
+		route = "/v1/knowledge/documents/:ref" // refs are CRM ids, not labels
+	}
 	if !knownRoutes[route] {
 		return "other"
 	}

@@ -35,7 +35,7 @@ func (Provider) Name() string { return Name }
 func (Provider) Supports(task string) bool {
 	return task == TaskCallSummary || task == TaskCallSummaryV2 || task == TaskOperationsDigest || task == TaskKpiExplanation ||
 		task == TaskMessageReply || task == TaskDealCoach || task == TaskRiskReview ||
-		task == TaskAgentPlan || task == TaskAgentPlanV2
+		task == TaskAgentPlan || task == TaskAgentPlanV2 || task == TaskKnowledgeAnswer
 }
 
 func sprintf(format string, args ...any) string { return fmt.Sprintf(format, args...) }
@@ -65,6 +65,12 @@ func (Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Respon
 		return modelgw.Response{Output: out, Provider: Name, Model: Model}, nil
 	case TaskKpiExplanation:
 		out, err := kpiExplanation(req.Input)
+		if err != nil {
+			return modelgw.Response{}, err
+		}
+		return modelgw.Response{Output: out, Provider: Name, Model: Model}, nil
+	case TaskKnowledgeAnswer:
+		out, err := knowledgeAnswer(req.Input)
 		if err != nil {
 			return modelgw.Response{}, err
 		}

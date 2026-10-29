@@ -23,6 +23,8 @@ const (
 	ScopeJobsCreate = "ai.jobs.create"
 	ScopeJobsRead   = "ai.jobs.read"
 	ScopeJobsCancel = "ai.jobs.cancel"
+	// Put or delete company documents for the Knowledge Assistant.
+	ScopeKnowledgeWrite = "ai.knowledge.write"
 )
 
 // Principal is the verified caller.

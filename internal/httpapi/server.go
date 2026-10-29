@@ -24,6 +24,7 @@ type Deps struct {
 	Jobs           *jobs.Service
 	Types          *jobtypes.Registry
 	Verifier       *auth.Verifier
+	Knowledge      KnowledgeStore // nil disables the /v1/knowledge endpoints
 	Ready          Readiness
 	Log            *slog.Logger
 	RequestTimeout time.Duration
@@ -40,6 +41,11 @@ func NewHandler(d Deps) http.Handler {
 	api.HandleFunc("GET /v1/jobs/{id}", h.requireScope(auth.ScopeJobsRead, h.getJob))
 	api.HandleFunc("POST /v1/jobs/{id}/cancel", h.requireScope(auth.ScopeJobsCancel, h.cancelJob))
 	api.HandleFunc("GET /v1/job-types", h.requireScope(auth.ScopeJobsRead, h.listJobTypes))
+	if d.Knowledge != nil {
+		api.HandleFunc("PUT /v1/knowledge/documents/{ref}", h.requireScope(auth.ScopeKnowledgeWrite, h.putDocument))
+		api.HandleFunc("DELETE /v1/knowledge/documents/{ref}", h.requireScope(auth.ScopeKnowledgeWrite, h.deleteDocument))
+		api.HandleFunc("POST /v1/knowledge/ask", h.requireScope(auth.ScopeJobsCreate, h.ask))
+	}
 	api.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusNotFound, "not_found", "no such endpoint")
 	})
