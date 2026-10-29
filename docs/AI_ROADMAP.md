@@ -44,7 +44,7 @@
    - CRM отправляет сводку пользователя в AI вручную и каждый день в 06:00;
      проверено `scripts/e2e_operations.sh`;
    - 📐 уведомление пользователя о готовой сводке.
-3. 🟠 AI Business Analyst (ветка CRM `feature/ai-business-analyst`):
+3. 🟠 AI Business Analyst (в `main` CRM, коммит `83111ea`):
    - ✅ CRM считает KPI за период и прошлый период и изменения сама (SQL + код);
    - ✅ тип задачи `kpi.explanation.v1`: каждое число в текстах обязано быть из CRM;
    - ✅ цепочка через CRM проверена на mock (`scripts/e2e_kpi.sh`);
