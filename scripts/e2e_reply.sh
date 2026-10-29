@@ -50,4 +50,20 @@ print("draft:", r["draft_reply"])
 assert d["auto_send"] is False'
 COUNT_AFTER=$(count_messages)
 [ "$COUNT_BEFORE" = "$COUNT_AFTER" ] || { echo "a message was added to the conversation!"; exit 1; }
+
+# The finished suggestion reaches the requester as an in-app notification
+# (outbox -> event dispatch -> notifications).
+NOTIFIED=""
+for _ in $(seq 1 60); do
+  NOTIFIED=$(api "$CRM_URL/api/v1/notifications/?category=ai" | CONV_ID="$CONV_ID" python3 -I -c '
+import json, os, sys
+d = json.load(sys.stdin)
+for n in d["results"]:
+    if os.environ["CONV_ID"] in (n.get("link") or ""):
+        print(n["title"]); break')
+  [ -n "$NOTIFIED" ] && break
+  sleep 1
+done
+[ -n "$NOTIFIED" ] || { echo "no notification for the suggestion"; exit 1; }
+echo "notification: $NOTIFIED"
 echo "e2e OK: CRM conversation -> AI suggestion -> CRM (nothing sent to the customer)"
