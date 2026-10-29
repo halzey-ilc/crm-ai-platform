@@ -48,7 +48,7 @@ func (Provider) Name() string { return Name }
 
 func (Provider) Supports(task string) bool {
 	return task == TaskCallSummary || task == TaskOperationsDigest || task == TaskKpiExplanation ||
-		task == TaskMessageReply
+		task == TaskMessageReply || task == TaskDealCoach
 }
 
 func (p Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Response, error) {
@@ -63,6 +63,8 @@ func (p Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Resp
 		out, err = p.kpiExplanation(ctx, req.Input)
 	case TaskMessageReply:
 		out, err = p.messageReply(ctx, req.Input)
+	case TaskDealCoach:
+		out, err = p.dealCoach(ctx, req.Input)
 	default:
 		return modelgw.Response{}, errors.New("llamacpp: unsupported task")
 	}

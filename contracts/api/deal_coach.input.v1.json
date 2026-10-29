@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "deal_coach.input.v1",
+  "description": "A deal and its history as the requesting user can see them in the CRM, for preparing the next conversation with the client. Dates are computed by the CRM; no contact details (phone numbers, e-mails) are included.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "today", "deal", "history"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "today": { "type": "string", "format": "date" },
+    "deal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ref", "title", "status", "stage", "stage_position", "stage_count", "probability", "amount", "currency", "expected_close_date", "age_days"],
+      "properties": {
+        "ref": { "$ref": "#/$defs/ref" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+        "status": { "type": "string", "enum": ["open", "won", "lost"] },
+        "stage": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "stage_position": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "stage_count": { "type": "integer", "minimum": 1, "maximum": 100 },
+        "probability": { "type": "integer", "minimum": 0, "maximum": 100 },
+        "amount": { "type": "number", "minimum": 0 },
+        "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+        "expected_close_date": { "anyOf": [{ "type": "null" }, { "type": "string", "format": "date" }] },
+        "age_days": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "history": {
+      "type": "array",
+      "maxItems": 40,
+      "description": "Notes, tasks, calls and meetings of the deal, oldest first.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "kind", "date", "title", "text", "status"],
+        "properties": {
+          "ref": { "$ref": "#/$defs/ref" },
+          "kind": { "type": "string", "enum": ["note", "task", "call", "meeting"] },
+          "date": { "type": "string", "format": "date", "description": "Due date for tasks, start for meetings, otherwise when it happened." },
+          "title": { "anyOf": [{ "type": "null" }, { "type": "string", "maxLength": 200 }] },
+          "text": { "anyOf": [{ "type": "null" }, { "type": "string", "maxLength": 2000 }] },
+          "status": {
+            "anyOf": [{ "type": "null" }, { "type": "string", "enum": ["open", "done", "cancelled", "overdue", "scheduled", "completed"] }]
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "ref": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$" }
+  }
+}

@@ -204,6 +204,45 @@ func TestMessageReplyDropsDraftWithInventedFacts(t *testing.T) {
 	}
 }
 
+func TestDealCoachDropsUngroundedPointsAndSkipsModelWhenEmpty(t *testing.T) {
+	input := `{"language":"ru","today":"2026-10-29",
+	 "deal":{"ref":"deal:1","title":"Поставка","status":"open","stage":"КП","stage_position":2,"stage_count":4,
+	         "probability":40,"amount":1000,"currency":"USD","expected_close_date":null,"age_days":12},
+	 "history":[{"ref":"activity:a","kind":"note","date":"2026-10-20","title":null,"text":"Просят доставку до конца месяца.","status":null}]}`
+	answer := `{"situation":[{"text":"Сделка на этапе КП, вероятность 40%.","refs":["deal:1"]},
+	                         {"text":"Клиент готов платить 1200 USD.","refs":["deal:1"]}],
+	 "risks":[{"text":"Сжатые сроки доставки.","refs":["activity:a"]}],
+	 "questions":[{"text":"Какой адрес доставки?","refs":["activity:a"]}],
+	 "next_step":{"text":"Согласовать дату доставки.","refs":["activity:a"]}}`
+	var seen map[string]any
+	srv := fakeServer(t, 200, answer, &seen)
+	resp, err := invoke(t, srv.URL, "deal_coach", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("deal_coach.output.v1", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	out := string(resp.Output)
+	if strings.Contains(out, "1200") || !strings.Contains(out, "вероятность 40%") {
+		t.Fatalf("the point with an invented number must be dropped: %s", out)
+	}
+	schema, _ := json.Marshal(seen["response_format"])
+	if !strings.Contains(string(schema), `"enum":["deal:1","activity:a"]`) {
+		t.Fatalf("refs must be constrained to the input: %s", schema)
+	}
+
+	called := false
+	srv2 := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { called = true }))
+	defer srv2.Close()
+	empty := strings.Replace(input, input[strings.Index(input, `"history":[`):], `"history":[]}`, 1)
+	resp, err = invoke(t, srv2.URL, "deal_coach", empty)
+	if err != nil || called || !strings.Contains(string(resp.Output), `"insufficient_data":true`) {
+		t.Fatalf("a deal without history must not call the model: called=%v err=%v %s", called, err, resp.Output)
+	}
+}
+
 func TestKpiExplanationDropsInventedNumbers(t *testing.T) {
 	input := `{"language":"en","period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
 	 "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},

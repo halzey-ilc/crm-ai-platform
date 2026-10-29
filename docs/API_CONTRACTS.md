@@ -135,6 +135,30 @@ meeting_request, complaint, cancellation, gratitude, other), `urgency` (low, nor
 Провайдер `llamacpp` ограничивает `message_ref` грамматикой клиентскими сообщениями, а
 черновик с посторонними фактами не отдаёт (`draft_reply: null`, `needs_human: true`).
 
+### Тип задачи `deal.coach.v1` (AI Sales Coach) 🟠
+
+Вход (`deal_coach.input.v1`):
+- `today`;
+- сделка `{ref, title, status, stage, stage_position, stage_count, probability, amount,
+  currency, expected_close_date, age_days}`;
+- до 40 записей истории `{ref, kind: note|task|call|meeting, date, title, text, status}`.
+
+CRM собирает всё это с правами запросившего пользователя и сама считает статусы,
+например просроченные задачи. Телефонов во входе нет.
+
+Выход (`deal_coach.output.v1`): `situation[]`, `risks[]`, `questions[]` и `next_step`,
+каждый пункт — `{text, refs}`; плюс `insufficient_data`, `language`, `generator`.
+
+Проверка отклоняет выход, если:
+- ссылка указывает не на запись из входа;
+- в тексте есть число, которого нет во входе: в значениях сделки, датах или текстах истории;
+- `insufficient_data` не совпадает со входом (нет истории — значит нет рисков, вопросов и шага).
+
+Провайдер `llamacpp`:
+- ограничивает `refs` грамматикой;
+- отбрасывает пункты с выдуманными числами;
+- при пустой истории модель не вызывает.
+
 ## 4. Ошибки (`ai.error.v1`)
 
 ```json

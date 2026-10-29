@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "deal_coach.output.v1",
+  "description": "A brief for the next conversation about a deal. Every point cites the deal or history records it is based on, and may not contain numbers that are not in the input.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "situation", "risks", "questions", "next_step", "insufficient_data", "language", "generator"],
+  "properties": {
+    "schema": { "const": "deal_coach.output.v1" },
+    "situation": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/point" } },
+    "risks": { "type": "array", "maxItems": 4, "items": { "$ref": "#/$defs/point" } },
+    "questions": {
+      "type": "array",
+      "maxItems": 5,
+      "description": "Questions to clarify with the client.",
+      "items": { "$ref": "#/$defs/point" }
+    },
+    "next_step": { "anyOf": [{ "type": "null" }, { "$ref": "#/$defs/point" }] },
+    "insufficient_data": {
+      "type": "boolean",
+      "description": "True when the deal has no history; then risks and questions are empty and next_step is null."
+    },
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "is_mock"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "is_mock": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "point": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "refs"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1, "maxLength": 400 },
+        "refs": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 5,
+          "uniqueItems": true,
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$" }
+        }
+      }
+    }
+  }
+}
