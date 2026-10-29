@@ -53,7 +53,8 @@ AI Platform — отдельный проект, интеллектуальна�
 | Model Registry | — | — | 🟠 метаданные запуска в `manifest.json`; реестр как сервис 📐 |
 | Model Serving (C++ runtime) | C++ | llama.cpp server (готовый движок), `deployments/local/compose.llm.yaml` | 🟠 локально ✅ ([ADR-006](DECISIONS/ADR-006-local-llm-llamacpp.md)); registry, откат, GPU 📐 |
 | Провайдер локальной LLM | Go | `internal/modelgw/llamacpp` | ✅ |
-| Audio processing (Rust) | Rust | — | 📐 только при измеримой необходимости |
+| Обезличивание данных | **Rust** | `runtimes/redact` (`crmai-redact`) | ✅ e-mail, телефоны, карты, IBAN, ПИН KG, ИИН KZ, паспорта; имена 📐 (нужна NER) |
+| Audio processing (Rust) | Rust | — | 📐 когда появятся записи звонков |
 | AI Data Platform (каталог датасетов) | — | — | 🟠 версия + отчёт качества в Toolkit; каталог 📐 |
 | AI Evaluation (регрессии моделей) | — | — | 🟠 метрики эксперимента; регрессионные наборы 📐 |
 | 8 AI-направлений | — | — | 📐 состав и принципы согласованы ([ADR-005](DECISIONS/ADR-005-approved-scope-and-principles.md)), порядок — [AI_ROADMAP.md](AI_ROADMAP.md) |
@@ -141,7 +142,8 @@ Mock provider детерминированно извлекает предлож
 | x/time/rate | лимиты | официальный пакет Go |
 | PostgreSQL 17 | метаданные и очередь | уже используется экосистемой; очередь на `SKIP LOCKED` без нового брокера ([ADR-003](DECISIONS/ADR-003-postgres-job-queue.md)) |
 | Python 3.13 + uv, numpy, scikit-learn | Training Toolkit | ML-экосистема; PyTorch добавится, когда появится нейросетевая задача |
-| Rust, C++ | — | установлены, но не используются: нет компонента, где они дали бы измеримое преимущество ([ADR-004](DECISIONS/ADR-004-languages-by-need.md)) |
+| Rust 1.99 | `runtimes/redact` — обезличивание | обрабатывает большие объёмы текста, нет ошибок памяти; один статический бинарник без зависимостей для Python и Go ([ADR-004](DECISIONS/ADR-004-languages-by-need.md)) |
+| C++ | llama.cpp server (готовый движок) | runtime для моделей; свой движок не пишется ([ADR-006](DECISIONS/ADR-006-local-llm-llamacpp.md)) |
 
 Не добавлены (нет измеримой необходимости): Kafka, Kubernetes, ClickHouse,
 RabbitMQ (для AI), gRPC/Protobuf (нет межъязыкового вызова между процессами).

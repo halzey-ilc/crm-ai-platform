@@ -1,0 +1,26 @@
+[package]
+name = "crmai-redact"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.85"
+description = "Detects and replaces personal data (emails, phones, cards, IBANs, KG/KZ personal numbers, passports) before data leaves the CRM for training or external providers."
+license = "Proprietary"
+publish = false
+
+[lib]
+name = "crmai_redact"
+path = "src/lib.rs"
+
+[[bin]]
+name = "crmai-redact"
+path = "src/main.rs"
+
+[dependencies]
+regex = "1"
+serde_json = "1"
+hmac = "0.12"
+sha2 = "0.10"
+
+[profile.release]
+lto = true
+codegen-units = 1

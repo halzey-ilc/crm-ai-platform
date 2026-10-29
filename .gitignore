@@ -8,6 +8,9 @@ secrets/
 *.test
 coverage.out
 
+# Rust
+runtimes/*/target/
+
 # Python training toolkit
 training/toolkit/.venv/
 __pycache__/

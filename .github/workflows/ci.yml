@@ -55,6 +55,21 @@ jobs:
             docker build -f deployments/docker/Dockerfile --target "$t" -t "crm-ai-platform/$t:ci" .
           done
 
+  rust-redact:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: runtimes/redact
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+      - run: cargo build --release
+
   training-toolkit:
     runs-on: ubuntu-latest
     defaults:

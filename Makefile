@@ -3,7 +3,7 @@ COMPOSE := docker compose --env-file .env -f deployments/local/compose.yaml
 TOOLKIT := training/toolkit
 
 .PHONY: help env up up-llm down logs ps build test test-integration lint vet fmt-check docker-build \
-        toolkit-install toolkit-test toolkit-experiment check token
+        toolkit-install toolkit-test toolkit-experiment redact-test redact-build check token
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -62,4 +62,10 @@ toolkit-test: ## Lint and test the training toolkit
 toolkit-experiment: ## Run the small synthetic lead-scoring experiment
 	cd $(TOOLKIT) && uv run crmai-train run experiments/lead_scoring_synthetic.toml
 
-check: lint test toolkit-test ## Everything that needs no running services
+redact-test: ## Rust redaction crate: fmt, clippy, tests
+	cd runtimes/redact && cargo fmt --check && cargo clippy --all-targets -q -- -D warnings && cargo test -q
+
+redact-build: ## Build the crmai-redact release binary
+	cd runtimes/redact && cargo build --release
+
+check: lint test toolkit-test redact-test ## Everything that needs no running services
