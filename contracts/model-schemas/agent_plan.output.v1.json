@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "agent_plan.output.v1",
+  "description": "Proposed actions for the user to confirm one by one. Only tools and records from the input may appear; nothing here has been executed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "summary", "actions", "insufficient_data", "requires_confirmation", "language", "generator"],
+  "properties": {
+    "schema": { "const": "agent_plan.output.v1" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "actions": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "subject_ref", "title", "due_date", "reason"],
+            "properties": {
+              "tool": { "const": "create_task" },
+              "subject_ref": { "$ref": "#/$defs/ref" },
+              "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "due_date": { "anyOf": [{ "type": "null" }, { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }] },
+              "reason": { "$ref": "#/$defs/reason" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "subject_ref", "body", "reason"],
+            "properties": {
+              "tool": { "const": "log_note" },
+              "subject_ref": { "$ref": "#/$defs/ref" },
+              "body": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              "reason": { "$ref": "#/$defs/reason" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "subject_ref", "reason"],
+            "properties": {
+              "tool": { "const": "request_deal_brief" },
+              "subject_ref": { "$ref": "#/$defs/ref" },
+              "reason": { "$ref": "#/$defs/reason" }
+            }
+          }
+        ]
+      }
+    },
+    "insufficient_data": { "type": "boolean", "description": "True when no action can be proposed from the request; actions is then empty." },
+    "requires_confirmation": { "const": true },
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "is_mock"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "is_mock": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "ref": { "type": "string", "pattern": "^(deal|customer):[0-9a-f-]{36}$" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 300 }
+  }
+}

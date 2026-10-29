@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "agent_plan.input.v1",
+  "description": "A user's request to the CRM assistant, the tools this user may use and the records they referred to. The AI only proposes actions; the CRM executes nothing until the user confirms each one.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "today", "request", "tools", "subjects"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "today": { "type": "string", "format": "date" },
+    "request": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/tool" }
+    },
+    "subjects": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "kind", "title"],
+        "properties": {
+          "ref": { "type": "string", "pattern": "^(deal|customer):[0-9a-f-]{36}$" },
+          "kind": { "type": "string", "enum": ["deal", "customer"] },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "tool": { "type": "string", "enum": ["create_task", "log_note", "request_deal_brief"] }
+  }
+}

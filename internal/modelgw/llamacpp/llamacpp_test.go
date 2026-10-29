@@ -270,6 +270,33 @@ func TestRiskReviewDropsAccusationsAndReplacesHeadline(t *testing.T) {
 	}
 }
 
+func TestAgentPlanKeepsOnlyValidActions(t *testing.T) {
+	deal := "deal:11111111-1111-4111-8111-111111111111"
+	input := `{"language":"ru","today":"2026-10-29","request":"Поставь задачу перезвонить в пятницу",
+	 "tools":["create_task"],"subjects":[{"ref":"` + deal + `","kind":"deal","title":"Сделка"}]}`
+	answer := `{"actions":[
+	  {"tool":"create_task","subject_ref":"` + deal + `","title":"Перезвонить клиенту","due_date":"2026-10-30","reason":"Просьба пользователя"},
+	  {"tool":"create_task","subject_ref":"` + deal + `","title":"Старая задача","due_date":"2025-01-01","reason":"r"}]}`
+	var seen map[string]any
+	srv := fakeServer(t, 200, answer, &seen)
+	resp, err := invoke(t, srv.URL, "agent_plan", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("agent_plan.output.v1", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	out := string(resp.Output)
+	if strings.Contains(out, "Старая задача") || !strings.Contains(out, "Перезвонить клиенту") {
+		t.Fatalf("an action with a past due date must be dropped: %s", out)
+	}
+	schema, _ := json.Marshal(seen["response_format"])
+	if strings.Contains(string(schema), "log_note") || !strings.Contains(string(schema), `"enum":["`+deal+`"]`) {
+		t.Fatalf("the grammar must offer only the listed tools and records: %s", schema)
+	}
+}
+
 func TestKpiExplanationDropsInventedNumbers(t *testing.T) {
 	input := `{"language":"en","period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
 	 "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},
