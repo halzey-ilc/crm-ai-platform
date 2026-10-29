@@ -17,6 +17,7 @@ import (
 	"crmai/internal/httpapi"
 	"crmai/internal/jobs"
 	"crmai/internal/jobtypes"
+	"crmai/internal/metrics"
 	"crmai/internal/platform"
 	"crmai/internal/store/postgres"
 )
@@ -72,9 +73,20 @@ func run() error {
 		RateLimitRPS:   cfg.RateLimitRPS,
 		RateLimitBurst: cfg.RateLimitBurst,
 	})
+	if cfg.MetricsAddr != "" {
+		mux := http.NewServeMux()
+		mux.Handle("GET /metrics", metrics.Default.Handler())
+		msrv := &http.Server{Addr: cfg.MetricsAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+		go func() {
+			if err := msrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+				log.Error("metrics server stopped", "err", err)
+			}
+		}()
+		defer msrv.Shutdown(context.Background()) //nolint:errcheck
+	}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
-		Handler:           handler,
+		Handler:           metrics.HTTP(handler),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       cfg.RequestTimeout,
 		WriteTimeout:      cfg.RequestTimeout + 5*time.Second,

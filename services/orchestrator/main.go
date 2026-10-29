@@ -14,6 +14,7 @@ import (
 	"crmai/internal/config"
 	"crmai/internal/jobs"
 	"crmai/internal/jobtypes"
+	"crmai/internal/metrics"
 	"crmai/internal/orchestrator"
 	"crmai/internal/platform"
 	"crmai/internal/store/postgres"
@@ -83,6 +84,8 @@ func run() error {
 		}
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
+	// Internal port only (not on the CRM link network); no tenant data in the series.
+	mux.Handle("GET /metrics", metrics.Default.Handler())
 	health := &http.Server{Addr: cfg.HealthAddr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
 	go func() {
 		if err := health.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -102,8 +105,18 @@ func run() error {
 		Backoff:      jobs.Backoff{Base: 2 * time.Second, Cap: 5 * time.Minute, Rand: rand.Float64},
 		Log:          log,
 	}
+	hk := &orchestrator.Housekeeping{
+		Store:         store,
+		WorkerID:      cfg.WorkerID,
+		RetentionDays: cfg.RetentionDays,
+		StatsEvery:    30 * time.Second,
+		PurgeEvery:    time.Hour,
+		BatchSize:     1000,
+		Log:           log,
+	}
+	go hk.Run(ctx)
 	log.Info("orchestrator started", "worker_id", cfg.WorkerID, "concurrency", cfg.Concurrency,
-		"tasks", models.Tasks(), "env", cfg.Env)
+		"tasks", models.Tasks(), "env", cfg.Env, "retention_days", cfg.RetentionDays)
 	w.Run(ctx)
 	log.Info("orchestrator stopped")
 	return nil

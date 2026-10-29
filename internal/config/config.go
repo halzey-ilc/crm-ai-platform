@@ -45,6 +45,8 @@ type Gateway struct {
 	MaxBodyBytes    int64
 	RateLimitRPS    float64
 	RateLimitBurst  int
+	// Prometheus /metrics on a separate listener; empty disables it.
+	MetricsAddr string
 }
 
 // Orchestrator configures the job worker.
@@ -54,7 +56,9 @@ type Orchestrator struct {
 	Concurrency  int
 	PollInterval time.Duration
 	Lease        time.Duration
-	HealthAddr   string
+	HealthAddr   string // also serves /metrics
+	// Finished jobs older than this many days are deleted; 0 keeps them forever.
+	RetentionDays int
 }
 
 // Migrate configures the schema migrator.
@@ -193,6 +197,10 @@ func loadGateway(l *loader) (Gateway, error) {
 		MaxBodyBytes:    int64(l.integer("AI_MAX_BODY_BYTES", 1<<20, 1024, 16<<20)),
 		RateLimitRPS:    float64(l.integer("AI_RATE_LIMIT_RPS", 20, 1, 10000)),
 		RateLimitBurst:  l.integer("AI_RATE_LIMIT_BURST", 40, 1, 10000),
+		MetricsAddr:     l.str("AI_METRICS_ADDR", ""),
+	}
+	if g.MetricsAddr != "" && g.MetricsAddr == g.HTTPAddr {
+		l.fail("AI_METRICS_ADDR must differ from AI_HTTP_ADDR: metrics are not served on the public API port")
 	}
 	current := l.required("AI_AUTH_HS256_KEY")
 	previous := l.secret("AI_AUTH_HS256_KEY_PREVIOUS")
@@ -236,6 +244,8 @@ func loadOrchestrator(l *loader, maxJobTimeout time.Duration) (Orchestrator, err
 		// Must outlive the longest job timeout; a crashed worker's job waits this long.
 		Lease:      l.duration("AI_WORKER_LEASE", 15*time.Minute),
 		HealthAddr: l.str("AI_WORKER_HEALTH_ADDR", ":8091"),
+		// Job inputs contain CRM text (call notes, messages): keep them only as long as needed.
+		RetentionDays: l.integer("AI_RETENTION_DAYS", 30, 0, 3650),
 	}
 	if o.Lease < maxJobTimeout+30*time.Second {
 		l.fail("AI_WORKER_LEASE must exceed the longest job timeout (%s) by at least 30s", maxJobTimeout)

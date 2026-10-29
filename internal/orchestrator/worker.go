@@ -13,6 +13,7 @@ import (
 
 	"crmai/internal/jobs"
 	"crmai/internal/jobtypes"
+	"crmai/internal/metrics"
 	"crmai/internal/modelgw"
 )
 
@@ -72,11 +73,11 @@ func (w *Worker) Process(ctx context.Context, j jobs.Job) {
 
 	if j.Attempts > j.MaxAttempts {
 		// Re-claimed after its lease expired on the last allowed attempt.
-		w.record(log, w.Queue.Fail(ctx, j, w.ID, "attempts_exhausted", "lease expired on the final attempt", nil))
+		w.finish(log, j, "failed", "attempts_exhausted", w.Queue.Fail(ctx, j, w.ID, "attempts_exhausted", "lease expired on the final attempt", nil))
 		return
 	}
 	if j.CancelRequested {
-		w.record(log, w.Queue.MarkCancelled(ctx, j, w.ID))
+		w.finish(log, j, "cancelled", "", w.Queue.MarkCancelled(ctx, j, w.ID))
 		return
 	}
 
@@ -84,34 +85,43 @@ func (w *Worker) Process(ctx context.Context, j jobs.Job) {
 	started := time.Now()
 	res, err := w.Types.Execute(runCtx, w.Models, j)
 	cancel()
+	metrics.JobDuration.Observe(time.Since(started).Seconds(), j.Type)
 	log = log.With("duration_ms", time.Since(started).Milliseconds())
 
 	if requested, cerr := w.Queue.CancelRequested(ctx, j); cerr == nil && requested {
 		log.Info("job cancelled during execution")
-		w.record(log, w.Queue.MarkCancelled(ctx, j, w.ID))
+		w.finish(log, j, "cancelled", "", w.Queue.MarkCancelled(ctx, j, w.ID))
 		return
 	}
 
 	switch {
 	case err == nil:
 		log.Info("job succeeded", "provider", res.Provider, "model", res.Model)
-		w.record(log, w.Queue.Complete(ctx, j, w.ID, res))
+		w.finish(log, j, "succeeded", "", w.Queue.Complete(ctx, j, w.ID, res))
 	case jobtypes.IsPermanent(err):
 		var p *jobtypes.PermanentError
 		errors.As(err, &p)
 		log.Warn("job failed permanently", "error_code", p.Code)
-		w.record(log, w.Queue.Fail(ctx, j, w.ID, p.Code, safeMessage(p.Code), nil))
+		w.finish(log, j, "failed", p.Code, w.Queue.Fail(ctx, j, w.ID, p.Code, safeMessage(p.Code), nil))
 	case modelgw.IsTransient(err) && j.Attempts < j.MaxAttempts:
 		retryAt := w.now().Add(w.Backoff.Delay(j.Attempts))
 		log.Warn("job failed transiently, will retry", "retry_at", retryAt)
-		w.record(log, w.Queue.Fail(ctx, j, w.ID, "transient_error", "temporary failure, retry scheduled", &retryAt))
+		w.finish(log, j, "retry", "transient_error", w.Queue.Fail(ctx, j, w.ID, "transient_error", "temporary failure, retry scheduled", &retryAt))
 	default:
 		code := "attempts_exhausted"
 		if !modelgw.IsTransient(err) {
 			code = "internal_error"
 		}
 		log.Warn("job failed", "error_code", code)
-		w.record(log, w.Queue.Fail(ctx, j, w.ID, code, safeMessage(code), nil))
+		w.finish(log, j, "failed", code, w.Queue.Fail(ctx, j, w.ID, code, safeMessage(code), nil))
+	}
+}
+
+// finish records the outcome in the store and, if that worked, in the metrics.
+func (w *Worker) finish(log *slog.Logger, j jobs.Job, outcome, code string, err error) {
+	w.record(log, err)
+	if err == nil {
+		metrics.JobsFinished.Inc(j.Type, outcome, code)
 	}
 }
 

@@ -10,6 +10,9 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"time"
+
+	"crmai/internal/metrics"
 )
 
 // Request is one model invocation.
@@ -83,7 +86,17 @@ func (g *Gateway) Invoke(ctx context.Context, req Request) (Response, error) {
 	if !ok {
 		return Response{}, fmt.Errorf("modelgw: no provider routed for task %q", req.Task)
 	}
+	started := time.Now()
 	resp, err := p.Invoke(ctx, req)
+	metrics.ModelLatency.Observe(time.Since(started).Seconds(), req.Task, p.Name())
+	switch {
+	case err == nil:
+		metrics.ModelCalls.Inc(req.Task, p.Name(), "ok")
+	case IsTransient(err):
+		metrics.ModelCalls.Inc(req.Task, p.Name(), "transient")
+	default:
+		metrics.ModelCalls.Inc(req.Task, p.Name(), "error")
+	}
 	if err != nil {
 		return Response{}, err
 	}

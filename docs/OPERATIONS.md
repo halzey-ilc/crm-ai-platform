@@ -84,7 +84,9 @@ PostgreSQL недоступен, они **падают**, а не пропуск
 | `AI_MODEL_PROVIDERS` | mock | в production mock запрещён |
 | `AI_WORKER_CONCURRENCY` | 4 | |
 | `AI_WORKER_POLL_INTERVAL` | 1s | |
-| `AI_WORKER_LEASE` | 5m | ≥ максимальный тайм-аут задачи + 30 с |
+| `AI_WORKER_LEASE` | 15m | ≥ максимальный тайм-аут задачи + 30 с |
+| `AI_METRICS_ADDR` | — (выключено) | отдельный порт `/metrics` gateway; не может совпадать с API-портом |
+| `AI_RETENTION_DAYS` | 30 | срок хранения завершённых задач; 0 — не удалять |
 
 Любой секрет можно передать как `<NAME>_FILE`.
 
@@ -93,9 +95,20 @@ PostgreSQL недоступен, они **падают**, а не пропуск
 - `GET /health/live` и `/health/ready` на gateway (:8090) и orchestrator (:8091).
   Readiness проверяет БД и версию схемы. ✅
 - Логи JSON со `correlation_id`, `job_id`, `tenant`, `duration_ms`. ✅
-- Метрики Prometheus (размер очереди, длительность, ошибки по кодам): 📐. До их появления
-  состояние очереди видно SQL-запросом:
-  `SELECT status, count(*) FROM ai_job GROUP BY 1;` (под ролью владельца).
+- Метрики Prometheus ✅. Отдаёт их собственный экспортёр (`internal/metrics`), без внешних
+  библиотек. В метках нет tenant и содержимого задач, пути нормализуются (`/v1/jobs/:id`,
+  остальное — `other`).
+  - gateway: `AI_METRICS_ADDR`, локально `127.0.0.1:9464/metrics`. Серии
+    `ai_http_requests_total{method,route,status}` и `ai_http_request_duration_seconds{route}`.
+    На публичном порту :8090 метрик нет.
+  - orchestrator: `127.0.0.1:8091/metrics`. Серии:
+    - `ai_jobs_finished_total{job_type,outcome,error_code}` и `ai_job_execution_seconds{job_type}`;
+    - `ai_model_calls_total{task,provider,outcome}` и `ai_model_call_seconds{task,provider}`;
+    - `ai_queue_jobs{status}` и `ai_queue_oldest_queued_seconds` (раз в 30 с через `ai_queue_stats()`);
+    - `ai_retention_jobs_deleted_total` и `ai_retention_runs_total{outcome}`.
+  - Что стоит настроить в алертах: `ai_queue_oldest_queued_seconds` > 600 (очередь не
+    разбирается); рост `ai_jobs_finished_total{outcome="failed"}`;
+    `ai_retention_runs_total{outcome="error"}` > 0.
 - Трассировки OpenTelemetry: 📐.
 
 ## 6. Масштабирование и восстановление

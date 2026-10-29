@@ -45,7 +45,9 @@ services:
       <<: *app-env
       AI_HTTP_ADDR: ":8090"
       AI_AUTH_HS256_KEY: ${AI_AUTH_HS256_KEY:?run make env}
-    ports: ["127.0.0.1:8090:8090"]
+      # Prometheus metrics (no tenant data) on their own port, published to localhost only.
+      AI_METRICS_ADDR: ":9464"
+    ports: ["127.0.0.1:8090:8090", "127.0.0.1:9464:9464"]
     # crm-link is the only network the CRM joins (see crm-platform/compose.ai.yaml):
     # it contains the gateway alone, so the CRM can reach nothing else here and
     # names like "postgres" never resolve across the two stacks.
@@ -63,6 +65,10 @@ services:
     environment:
       <<: *app-env
       AI_WORKER_CONCURRENCY: "4"
+      # Finished jobs (inputs contain CRM text) are deleted after this many days.
+      AI_RETENTION_DAYS: ${AI_RETENTION_DAYS:-30}
+    # /health/* and /metrics, published to localhost only.
+    ports: ["127.0.0.1:8091:8091"]
     depends_on:
       migrate: { condition: service_completed_successfully }
     read_only: true
