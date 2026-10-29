@@ -17,8 +17,8 @@ const kpiSystem = `You are a business analyst explaining a CRM's KPI report to a
 All numbers were calculated by the CRM and are correct. Rules:
 - Do NOT calculate anything. Use only numbers that appear in the input (current, previous, change, change_pct).
 - "percent" metrics are already in %%; their "change" is in percentage points.
-- Write up to 4 observations about the most important changes, each naming its metric_codes.
-- Write up to 3 practical recommendations, each naming the metric_codes it addresses.
+- Write up to 3 short observations about the most important changes, each naming its metric_codes.
+- Write up to 2 short practical recommendations, each naming the metric_codes it addresses.
 - If a metric has no previous value, do not claim a trend for it.
 - Never write metric codes inside text; use the metric names.
 Write all texts in %s. Answer with JSON only.`
@@ -74,17 +74,25 @@ func (p Provider) kpiExplanation(ctx context.Context, raw json.RawMessage) (json
 		"required": []string{"headline", "observations", "recommendations"},
 		"properties": map[string]any{
 			"headline":        map[string]any{"type": "string", "minLength": 1, "maxLength": 250},
-			"observations":    map[string]any{"type": "array", "minItems": 1, "maxItems": 4, "items": item},
-			"recommendations": map[string]any{"type": "array", "maxItems": 3, "items": item},
+			"observations":    map[string]any{"type": "array", "minItems": 1, "maxItems": 3, "items": item},
+			"recommendations": map[string]any{"type": "array", "maxItems": 2, "items": item},
 		},
 	}
-	user, _ := json.Marshal(map[string]any{"period": in.Period, "previous_period": in.PreviousPeriod, "metrics": in.Metrics})
+	// Only metrics with a value reach the model: on a CPU every prompt token costs time,
+	// and an empty metric has nothing to explain.
+	var withValues []kpinum.Metric
+	for _, m := range in.Metrics {
+		if (m.Current != nil && *m.Current != 0) || (m.Previous != nil && *m.Previous != 0) {
+			withValues = append(withValues, m)
+		}
+	}
+	user, _ := json.Marshal(map[string]any{"period": in.Period, "previous_period": in.PreviousPeriod, "metrics": withValues})
 	var ans struct {
 		Headline        string    `json:"headline"`
 		Observations    []kpiItem `json:"observations"`
 		Recommendations []kpiItem `json:"recommendations"`
 	}
-	if err := p.complete(ctx, fmt.Sprintf(kpiSystem, languageName(in.Language)), "KPI report:\n"+string(user), schema, 900, &ans); err != nil {
+	if err := p.complete(ctx, fmt.Sprintf(kpiSystem, languageName(in.Language)), "KPI report:\n"+string(user), schema, 600, &ans); err != nil {
 		return nil, err
 	}
 

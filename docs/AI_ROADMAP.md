@@ -44,7 +44,13 @@
    - CRM отправляет сводку пользователя в AI вручную и каждый день в 06:00;
      проверено `scripts/e2e_operations.sh`;
    - 📐 уведомление пользователя о готовой сводке.
-3. ✅ Локальная LLM ([ADR-006](DECISIONS/ADR-006-local-llm-llamacpp.md)):
+3. 🟠 AI Business Analyst (ветка CRM `feature/ai-business-analyst`):
+   - ✅ CRM считает KPI за период и прошлый период и изменения сама (SQL + код);
+   - ✅ тип задачи `kpi.explanation.v1`: каждое число в текстах обязано быть из CRM;
+   - ✅ цепочка через CRM проверена на mock (`scripts/e2e_kpi.sh`);
+   - ⛔ **на локальной модели не проверено**: на ноутбуке при работающем minikube генерация
+     не уложилась в 10 минут. Нужен GPU-сервер или замер без фоновой нагрузки.
+4. ✅ Локальная LLM ([ADR-006](DECISIONS/ADR-006-local-llm-llamacpp.md)):
    - Qwen3.5-4B (Apache-2.0) на llama.cpp server (C++), провайдер `llamacpp`, `make up-llm`;
    - оценка на 8 синтетических звонках: 8/8 успешно, следующий шаг 8/8, медиана 157 с
      ([MODEL_EVALUATION.md §6](MODEL_EVALUATION.md));
