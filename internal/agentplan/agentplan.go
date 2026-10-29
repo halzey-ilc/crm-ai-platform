@@ -16,9 +16,12 @@ type Subject struct {
 	Ref   string `json:"ref"`
 	Kind  string `json:"kind"`
 	Title string `json:"title"`
+	// v2, deals only: the current stage and the stages of the deal's pipeline.
+	Stage  string   `json:"stage,omitempty"`
+	Stages []string `json:"stages,omitempty"`
 }
 
-// Input is agent_plan.input.v1.
+// Input is agent_plan.input.v1 or v2.
 type Input struct {
 	Language string    `json:"language"`
 	Today    string    `json:"today"`
@@ -34,8 +37,18 @@ type Action struct {
 	Title      string  `json:"title,omitempty"`
 	DueDate    *string `json:"due_date,omitempty"`
 	Body       string  `json:"body,omitempty"`
-	Reason     string  `json:"reason"`
+	// v2: schedule_meeting (local time "YYYY-MM-DDTHH:MM") and move_deal_stage.
+	Start           string `json:"start,omitempty"`
+	DurationMinutes int    `json:"duration_minutes,omitempty"`
+	Stage           string `json:"stage,omitempty"`
+	Reason          string `json:"reason"`
 }
+
+// Meeting length limits for schedule_meeting.
+const (
+	MinMeetingMinutes = 15
+	MaxMeetingMinutes = 480
+)
 
 // MarshalJSON writes exactly the fields of the action's tool, as the output
 // contract requires (e.g. create_task always carries due_date, maybe null).
@@ -56,6 +69,22 @@ func (a Action) MarshalJSON() ([]byte, error) {
 			Body       string `json:"body"`
 			Reason     string `json:"reason"`
 		}{a.Tool, a.SubjectRef, a.Body, a.Reason})
+	case "schedule_meeting":
+		return json.Marshal(struct {
+			Tool            string `json:"tool"`
+			SubjectRef      string `json:"subject_ref"`
+			Title           string `json:"title"`
+			Start           string `json:"start"`
+			DurationMinutes int    `json:"duration_minutes"`
+			Reason          string `json:"reason"`
+		}{a.Tool, a.SubjectRef, a.Title, a.Start, a.DurationMinutes, a.Reason})
+	case "move_deal_stage":
+		return json.Marshal(struct {
+			Tool       string `json:"tool"`
+			SubjectRef string `json:"subject_ref"`
+			Stage      string `json:"stage"`
+			Reason     string `json:"reason"`
+		}{a.Tool, a.SubjectRef, a.Stage, a.Reason})
 	default:
 		return json.Marshal(struct {
 			Tool       string `json:"tool"`
@@ -117,15 +146,51 @@ func (in Input) Check(a Action) string {
 	if strings.TrimSpace(a.Reason) == "" {
 		return "has no reason"
 	}
-	if a.Tool == "create_task" && a.DueDate != nil {
-		today, err1 := time.Parse(time.DateOnly, in.Today)
-		due, err2 := time.Parse(time.DateOnly, *a.DueDate)
-		if err1 != nil || err2 != nil {
-			return "has an invalid due date"
+	switch a.Tool {
+	case "create_task":
+		if a.DueDate != nil {
+			return in.checkDate(*a.DueDate, time.DateOnly, "due date")
 		}
-		if due.Before(today) || due.Sub(today) > MaxHorizon {
-			return fmt.Sprintf("has a due date outside %s..+1 year", in.Today)
+	case "schedule_meeting":
+		if strings.TrimSpace(a.Title) == "" {
+			return "has no meeting title"
+		}
+		if a.DurationMinutes < MinMeetingMinutes || a.DurationMinutes > MaxMeetingMinutes {
+			return fmt.Sprintf("has a meeting length outside %d..%d minutes", MinMeetingMinutes, MaxMeetingMinutes)
+		}
+		return in.checkDate(a.Start, "2006-01-02T15:04", "meeting start")
+	case "move_deal_stage":
+		if subject.Kind != "deal" {
+			return "moves a record that is not a deal"
+		}
+		if a.Stage == subject.Stage {
+			return "moves the deal to the stage it is already in"
+		}
+		if !contains(subject.Stages, a.Stage) {
+			return "moves the deal to a stage that is not in its pipeline"
 		}
 	}
 	return ""
+}
+
+// checkDate requires value (in layout) to fall between today and a year ahead.
+func (in Input) checkDate(value, layout, what string) string {
+	today, err1 := time.Parse(time.DateOnly, in.Today)
+	at, err2 := time.Parse(layout, value)
+	if err1 != nil || err2 != nil {
+		return "has an invalid " + what
+	}
+	if at.Before(today) || at.Sub(today) > MaxHorizon {
+		return fmt.Sprintf("has a %s outside %s..+1 year", what, in.Today)
+	}
+	return ""
+}
+
+func contains(xs []string, x string) bool {
+	for _, v := range xs {
+		if v == x {
+			return true
+		}
+	}
+	return false
 }

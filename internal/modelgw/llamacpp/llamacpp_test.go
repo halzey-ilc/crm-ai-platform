@@ -297,6 +297,37 @@ func TestAgentPlanKeepsOnlyValidActions(t *testing.T) {
 	}
 }
 
+func TestAgentPlanV2OffersStagesOnceAndDropsPastMeetings(t *testing.T) {
+	deal := "deal:11111111-1111-4111-8111-111111111111"
+	other := "deal:22222222-2222-4222-8222-222222222222"
+	stages := `["Новая","Переговоры","Договор"]`
+	input := `{"language":"ru","today":"2026-10-29","request":"Назначь встречу и переведи сделку",
+	 "tools":["schedule_meeting","move_deal_stage"],
+	 "subjects":[{"ref":"` + deal + `","kind":"deal","title":"A","stage":"Новая","stages":` + stages + `},
+	             {"ref":"` + other + `","kind":"deal","title":"B","stage":"Договор","stages":` + stages + `}]}`
+	answer := `{"actions":[
+	  {"tool":"schedule_meeting","subject_ref":"` + deal + `","title":"Демо","start":"2026-10-01T10:00","duration_minutes":60,"reason":"r"},
+	  {"tool":"move_deal_stage","subject_ref":"` + deal + `","stage":"Переговоры","reason":"просьба пользователя"}]}`
+	var seen map[string]any
+	srv := fakeServer(t, 200, answer, &seen)
+	resp, err := invoke(t, srv.URL, "agent_plan_v2", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("agent_plan.output.v2", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	out := string(resp.Output)
+	if strings.Contains(out, "schedule_meeting") || !strings.Contains(out, `"stage":"Переговоры"`) {
+		t.Fatalf("the past meeting must be dropped, the valid stage move kept: %s", out)
+	}
+	schema, _ := json.Marshal(seen["response_format"])
+	if !strings.Contains(string(schema), `"enum":["Новая","Переговоры","Договор"]`) {
+		t.Fatalf("stages must be offered once each: %s", schema)
+	}
+}
+
 func TestKpiExplanationDropsInventedNumbers(t *testing.T) {
 	input := `{"language":"en","period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
 	 "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},

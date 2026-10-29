@@ -25,6 +25,15 @@ func AgentPlanV1() Definition {
 	}
 }
 
+// AgentPlanV2 adds the schedule_meeting and move_deal_stage tools. v1 stays
+// unchanged for clients that do not offer them.
+func AgentPlanV2() Definition {
+	d := AgentPlanV1()
+	d.Type, d.Task = "agent.plan.v2", "agent_plan_v2"
+	d.InputSchema, d.OutputSchema = "agent_plan.input.v2", "agent_plan.output.v2"
+	return d
+}
+
 func groundAgentPlan(input, output json.RawMessage) error {
 	in, err := agentplan.Parse(input)
 	if err != nil {

@@ -13,11 +13,16 @@ import (
 // stems and targets the first record the user referred to; it is a fixture.
 const TaskAgentPlan = "agent_plan"
 
+// TaskAgentPlanV2 also offers schedule_meeting and move_deal_stage.
+const TaskAgentPlanV2 = "agent_plan_v2"
+
 var (
 	taskStems     = []string{"задач", "напомн", "перезвон", "позвон", "тапшырма", "эскерт", "task", "remind", "call back"}
 	noteStems     = []string{"заметк", "запиши", "запис", "жазып", "note", "write down"}
 	briefStems    = []string{"бриф", "подготов", "даярда", "brief", "prepare"}
 	tomorrowStems = []string{"завтра", "эртең", "tomorrow"}
+	meetingStems  = []string{"встреч", "демо", "жолугуш", "meeting", "demo"}
+	stageStems    = []string{"этап", "перевед", "передвинь", "баскыч", "stage", "move the deal"}
 )
 
 type agentOut struct {
@@ -30,13 +35,13 @@ type agentOut struct {
 	Generator            generator          `json:"generator"`
 }
 
-func agentPlan(raw json.RawMessage) (json.RawMessage, error) {
+func agentPlan(raw json.RawMessage, schema string) (json.RawMessage, error) {
 	in, err := agentplan.Parse(raw)
 	if err != nil {
 		return nil, errors.New("mock: input is not an agent_plan input")
 	}
 	out := agentOut{
-		Schema: "agent_plan.output.v1", Actions: []agentplan.Action{}, RequiresConfirmation: true,
+		Schema: schema, Actions: []agentplan.Action{}, RequiresConfirmation: true,
 		Language: in.Language, Generator: generator{Provider: Name, Model: Model, IsMock: true},
 	}
 	request := strings.TrimSpace(in.Request)
@@ -56,6 +61,27 @@ func agentPlan(raw json.RawMessage) (json.RawMessage, error) {
 		}
 		if in.Allows("request_deal_brief") && s.Kind == "deal" && containsAny(lower, briefStems) {
 			out.Actions = append(out.Actions, agentplan.Action{Tool: "request_deal_brief", SubjectRef: s.Ref, Reason: truncate(request, 300)})
+		}
+		if in.Allows("schedule_meeting") && containsAny(lower, meetingStems) {
+			// The fixture always proposes tomorrow at 10:00 for an hour.
+			if today, err := time.Parse(time.DateOnly, in.Today); err == nil {
+				out.Actions = append(out.Actions, agentplan.Action{
+					Tool: "schedule_meeting", SubjectRef: s.Ref, Title: truncate(request, 200),
+					Start: today.AddDate(0, 0, 1).Format(time.DateOnly) + "T10:00", DurationMinutes: 60,
+					Reason: truncate(request, 300),
+				})
+			}
+		}
+		if in.Allows("move_deal_stage") && s.Kind == "deal" && containsAny(lower, stageStems) {
+			// The fixture proposes the next stage of the pipeline, if there is one.
+			for i, st := range s.Stages {
+				if st == s.Stage && i+1 < len(s.Stages) {
+					out.Actions = append(out.Actions, agentplan.Action{
+						Tool: "move_deal_stage", SubjectRef: s.Ref, Stage: s.Stages[i+1], Reason: truncate(request, 300),
+					})
+					break
+				}
+			}
 		}
 	}
 	t, ok := agentplan.Summaries[in.Language]

@@ -49,7 +49,7 @@ func (Provider) Name() string { return Name }
 func (Provider) Supports(task string) bool {
 	return task == TaskCallSummary || task == TaskCallSummaryV2 || task == TaskOperationsDigest || task == TaskKpiExplanation ||
 		task == TaskMessageReply || task == TaskDealCoach || task == TaskRiskReview ||
-		task == TaskAgentPlan
+		task == TaskAgentPlan || task == TaskAgentPlanV2
 }
 
 func (p Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Response, error) {
@@ -71,7 +71,9 @@ func (p Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Resp
 	case TaskRiskReview:
 		out, err = p.riskReview(ctx, req.Input)
 	case TaskAgentPlan:
-		out, err = p.agentPlan(ctx, req.Input)
+		out, err = p.agentPlan(ctx, req.Input, "agent_plan.output.v1")
+	case TaskAgentPlanV2:
+		out, err = p.agentPlan(ctx, req.Input, "agent_plan.output.v2")
 	default:
 		return modelgw.Response{}, errors.New("llamacpp: unsupported task")
 	}

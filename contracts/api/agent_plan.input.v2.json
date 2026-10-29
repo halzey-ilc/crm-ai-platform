@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "agent_plan.input.v2",
+  "description": "As v1, plus two tools: schedule_meeting and move_deal_stage. For deals the CRM sends the current stage and the stages of the deal's pipeline. The AI only proposes; the CRM executes nothing until the user confirms each action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "today", "request", "tools", "subjects"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "today": { "type": "string", "format": "date" },
+    "request": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["create_task", "log_note", "request_deal_brief", "schedule_meeting", "move_deal_stage"] }
+    },
+    "subjects": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "kind", "title"],
+        "properties": {
+          "ref": { "type": "string", "pattern": "^(deal|customer):[0-9a-f-]{36}$" },
+          "kind": { "type": "string", "enum": ["deal", "customer"] },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "stage": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "stages": {
+            "type": "array",
+            "maxItems": 50,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 100 }
+          }
+        }
+      }
+    }
+  }
+}

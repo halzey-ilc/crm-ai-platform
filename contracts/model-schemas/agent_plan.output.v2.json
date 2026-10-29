@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "agent_plan.output.v2",
+  "description": "Proposed actions for the user to confirm one by one (v1 tools plus schedule_meeting and move_deal_stage). Only tools and records from the input may appear; nothing here has been executed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "summary", "actions", "insufficient_data", "requires_confirmation", "language", "generator"],
+  "properties": {
+    "schema": { "const": "agent_plan.output.v2" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 300 },
+    "actions": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "subject_ref", "title", "due_date", "reason"],
+            "properties": {
+              "tool": { "const": "create_task" },
+              "subject_ref": { "$ref": "#/$defs/ref" },
+              "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "due_date": { "anyOf": [{ "type": "null" }, { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}$" }] },
+              "reason": { "$ref": "#/$defs/reason" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "subject_ref", "body", "reason"],
+            "properties": {
+              "tool": { "const": "log_note" },
+              "subject_ref": { "$ref": "#/$defs/ref" },
+              "body": { "type": "string", "minLength": 1, "maxLength": 2000 },
+              "reason": { "$ref": "#/$defs/reason" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "subject_ref", "reason"],
+            "properties": {
+              "tool": { "const": "request_deal_brief" },
+              "subject_ref": { "$ref": "#/$defs/ref" },
+              "reason": { "$ref": "#/$defs/reason" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "subject_ref", "title", "start", "duration_minutes", "reason"],
+            "properties": {
+              "tool": { "const": "schedule_meeting" },
+              "subject_ref": { "$ref": "#/$defs/ref" },
+              "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "start": { "type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$", "description": "Company local time." },
+              "duration_minutes": { "type": "integer", "minimum": 15, "maximum": 480 },
+              "reason": { "$ref": "#/$defs/reason" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "subject_ref", "stage", "reason"],
+            "properties": {
+              "tool": { "const": "move_deal_stage" },
+              "subject_ref": { "$ref": "#/$defs/ref" },
+              "stage": { "type": "string", "minLength": 1, "maxLength": 100 },
+              "reason": { "$ref": "#/$defs/reason" }
+            }
+          }
+        ]
+      }
+    },
+    "insufficient_data": { "type": "boolean" },
+    "requires_confirmation": { "const": true },
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "is_mock"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "is_mock": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "ref": { "type": "string", "pattern": "^(deal|customer):[0-9a-f-]{36}$" },
+    "reason": { "type": "string", "minLength": 1, "maxLength": 300 }
+  }
+}
