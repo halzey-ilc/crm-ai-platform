@@ -24,5 +24,25 @@ d = json.load(sys.stdin)
 print("insight:", d["status"], "| provider:", d["provider"], "| model:", d["model"], "| is_mock:", d["is_mock"])
 if d["status"] != "succeeded":
     print("error_code:", d["error_code"]); sys.exit(1)
-print(json.dumps(d["result"], ensure_ascii=False, indent=2))'
+print(json.dumps(d["result"], ensure_ascii=False, indent=2))
+assert d["schema_id"] == "call_summary.output.v2" and d["result"]["insufficient_data"] is False'
+
+# A call with notes too thin to summarise: the result says so instead of inventing a summary.
+THIN_ID=$(api -X POST "$CRM_URL/api/v1/telephony/calls/" -d '{
+  "direction":"outbound","from_number":"+77011112233","to_number":"+77019998877",
+  "status":"completed","started_at":"2026-10-28T10:00:00Z","duration_seconds":5,
+  "notes":"Не дозвонился."
+}' | json 'd["id"]')
+api -o /dev/null -X POST "$CRM_URL/api/v1/ai/calls/$THIN_ID/summary/"
+for _ in $(seq 1 120); do
+  THIN=$(api "$CRM_URL/api/v1/ai/calls/$THIN_ID/summary/")
+  case "$(echo "$THIN" | json 'd["status"]')" in succeeded|failed) break ;; esac
+  sleep 1
+done
+echo "$THIN" | python3 -I -c '
+import json, sys
+d = json.load(sys.stdin)
+r = d["result"] or {}
+print("thin notes:", d["status"], "| insufficient_data:", r.get("insufficient_data"), "|", r.get("summary"))
+assert d["status"] == "succeeded" and r["insufficient_data"] is True and r["key_points"] == []'
 echo "e2e OK: CRM -> AI Platform -> CRM"

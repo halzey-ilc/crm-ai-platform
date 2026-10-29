@@ -47,7 +47,7 @@ type Provider struct {
 func (Provider) Name() string { return Name }
 
 func (Provider) Supports(task string) bool {
-	return task == TaskCallSummary || task == TaskOperationsDigest || task == TaskKpiExplanation ||
+	return task == TaskCallSummary || task == TaskCallSummaryV2 || task == TaskOperationsDigest || task == TaskKpiExplanation ||
 		task == TaskMessageReply || task == TaskDealCoach || task == TaskRiskReview ||
 		task == TaskAgentPlan
 }
@@ -58,6 +58,8 @@ func (p Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Resp
 	switch req.Task {
 	case TaskCallSummary:
 		out, err = p.callSummary(ctx, req.Input)
+	case TaskCallSummaryV2:
+		out, err = p.callSummaryV2(ctx, req.Input)
 	case TaskOperationsDigest:
 		out, err = p.operationsDigest(ctx, req.Input)
 	case TaskKpiExplanation:
@@ -190,3 +192,9 @@ func languageName(code string) string {
 		return "the same language as the input text"
 	}
 }
+
+// how to setter with and create snd ffvhgfuvf v
+
+// const fn main ():: f= fettue dv cdhv tvhhutyhnkfvk
+
+//create ans setter with creatful and we make

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "call_summary.output.v2",
+  "description": "Structured result of call.summary.v2. As v1, every extracted item carries an evidence quote that occurs verbatim in the input. New: insufficient_data is true when the text gives nothing to summarise; key_points is then empty, next_step null and summary a fixed notice, never invented content (principle 7, ADR-005).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "summary", "key_points", "next_step", "insufficient_data", "language", "generator"],
+  "properties": {
+    "schema": { "const": "call_summary.output.v2" },
+    "summary": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "key_points": {
+      "type": "array",
+      "maxItems": 10,
+      "items": { "$ref": "#/$defs/grounded" }
+    },
+    "next_step": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/$defs/grounded" }]
+    },
+    "insufficient_data": { "type": "boolean" },
+    "language": { "type": "string", "enum": ["ru", "ky", "en", "unknown"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "is_mock"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "is_mock": { "type": "boolean" }
+      }
+    }
+  },
+  "$defs": {
+    "grounded": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "evidence_quote"],
+      "properties": {
+        "text": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "evidence_quote": { "type": "string", "minLength": 1, "maxLength": 1000 }
+      }
+    }
+  }
+}

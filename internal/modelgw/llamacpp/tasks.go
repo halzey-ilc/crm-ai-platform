@@ -9,6 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"crmai/internal/callsummary"
 	"crmai/internal/modelgw"
 )
 
@@ -110,6 +111,28 @@ func (p Provider) callSummary(ctx context.Context, raw json.RawMessage) (json.Ra
 		p.Log.Info("llm items dropped as ungrounded", "count", dropped)
 	}
 	return json.Marshal(out)
+}
+
+// TaskCallSummaryV2 is call_summary with insufficient_data.
+const TaskCallSummaryV2 = "call_summary_v2"
+
+func (p Provider) callSummaryV2(ctx context.Context, raw json.RawMessage) (json.RawMessage, error) {
+	var in struct {
+		Transcript string `json:"transcript"`
+		Language   string `json:"language"`
+	}
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return nil, errors.New("llamacpp: input is not a call_summary input")
+	}
+	if callsummary.TooShort(in.Transcript) {
+		// Nothing to summarise: say so without asking the model (principle 7, ADR-005).
+		return callsummary.Insufficient(in.Language, p.generator())
+	}
+	v1, err := p.callSummary(ctx, raw)
+	if err != nil {
+		return nil, err
+	}
+	return callsummary.FromV1(v1)
 }
 
 // anchor returns the exact span of text that the model's quote refers to.

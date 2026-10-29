@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"crmai/internal/callsummary"
 )
 
 // CallSummaryV1 summarises a call transcript into grounded key points and a
@@ -23,6 +25,43 @@ func CallSummaryV1() Definition {
 		Timeout: 10 * time.Minute,
 		Ground:  groundCallSummary,
 	}
+}
+
+// CallSummaryV2 is CallSummaryV1 plus an explicit insufficient_data flag: a text
+// with nothing to summarise yields a fixed notice instead of free text.
+func CallSummaryV2() Definition {
+	d := CallSummaryV1()
+	d.Type, d.Task, d.OutputSchema = "call.summary.v2", "call_summary_v2", "call_summary.output.v2"
+	d.Ground = groundCallSummaryV2
+	return d
+}
+
+func groundCallSummaryV2(input, output json.RawMessage) error {
+	if err := groundCallSummary(input, output); err != nil {
+		return err
+	}
+	var in struct {
+		Transcript string `json:"transcript"`
+	}
+	var out struct {
+		Summary          string   `json:"summary"`
+		KeyPoints        []quoted `json:"key_points"`
+		NextStep         *quoted  `json:"next_step"`
+		InsufficientData bool     `json:"insufficient_data"`
+		Language         string   `json:"language"`
+	}
+	_ = json.Unmarshal(input, &in)
+	_ = json.Unmarshal(output, &out)
+	empty := len(out.KeyPoints) == 0 && out.NextStep == nil
+	switch {
+	case callsummary.TooShort(in.Transcript) && !out.InsufficientData:
+		return errors.New("the text is too short to summarise but insufficient_data is false")
+	case out.InsufficientData != empty:
+		return errors.New("insufficient_data must be set exactly when nothing grounded was extracted")
+	case out.InsufficientData && out.Summary != callsummary.Notice(out.Language):
+		return errors.New("with insufficient data the summary must be the fixed notice")
+	}
+	return nil
 }
 
 type quoted struct {

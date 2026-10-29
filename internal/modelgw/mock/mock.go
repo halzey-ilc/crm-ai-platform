@@ -13,6 +13,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"crmai/internal/callsummary"
 	"crmai/internal/modelgw"
 )
 
@@ -32,7 +33,7 @@ type Provider struct{}
 func (Provider) Name() string { return Name }
 
 func (Provider) Supports(task string) bool {
-	return task == TaskCallSummary || task == TaskOperationsDigest || task == TaskKpiExplanation ||
+	return task == TaskCallSummary || task == TaskCallSummaryV2 || task == TaskOperationsDigest || task == TaskKpiExplanation ||
 		task == TaskMessageReply || task == TaskDealCoach || task == TaskRiskReview ||
 		task == TaskAgentPlan
 }
@@ -46,6 +47,12 @@ func (Provider) Invoke(ctx context.Context, req modelgw.Request) (modelgw.Respon
 	switch req.Task {
 	case TaskCallSummary:
 		out, err := callSummary(req.Input)
+		if err != nil {
+			return modelgw.Response{}, err
+		}
+		return modelgw.Response{Output: out, Provider: Name, Model: Model}, nil
+	case TaskCallSummaryV2:
+		out, err := callSummaryV2(req.Input)
 		if err != nil {
 			return modelgw.Response{}, err
 		}
@@ -161,6 +168,24 @@ func callSummary(raw json.RawMessage) (json.RawMessage, error) {
 		}
 	}
 	return json.Marshal(out)
+}
+
+// TaskCallSummaryV2 is call_summary with insufficient_data.
+const TaskCallSummaryV2 = "call_summary_v2"
+
+func callSummaryV2(raw json.RawMessage) (json.RawMessage, error) {
+	var in callInput
+	if err := json.Unmarshal(raw, &in); err != nil {
+		return nil, errors.New("mock: input is not a call_summary input")
+	}
+	if callsummary.TooShort(in.Transcript) {
+		return callsummary.Insufficient(in.Language, generator{Provider: Name, Model: Model, IsMock: true})
+	}
+	v1, err := callSummary(raw)
+	if err != nil {
+		return nil, err
+	}
+	return callsummary.FromV1(v1)
 }
 
 // Sentences splits text at sentence punctuation and line breaks. Each
