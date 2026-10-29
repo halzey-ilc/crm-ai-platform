@@ -94,6 +94,12 @@ func (in Input) AllowedNumbers() Allowed {
 	return a
 }
 
+// FromValues builds an allowed set from explicit numbers, e.g. the numbers that
+// occur in a source text.
+func FromValues(values ...float64) Allowed {
+	return Allowed{values: append([]float64(nil), values...)}
+}
+
 // Contains reports whether x equals an allowed number, possibly rounded to 0,
 // 1 or 2 decimals (the model may write 12.5 for 12.47).
 func (a Allowed) Contains(x float64) bool {

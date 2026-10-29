@@ -167,6 +167,43 @@ func TestFailureClassification(t *testing.T) {
 	}
 }
 
+func TestMessageReplyDropsDraftWithInventedFacts(t *testing.T) {
+	input := `{"language":"ru","channel":"whatsapp","messages":[
+	 {"ref":"m1","direction":"inbound","text":"Здравствуйте, сколько стоит доставка в Ош?"},
+	 {"ref":"m2","direction":"outbound","text":"Добрый день, уточняю."},
+	 {"ref":"m3","direction":"inbound","text":"Жду ответа"}]}`
+	answer := `{"intent":"price_request","urgency":"normal",
+	 "evidence":{"message_ref":"m1","quote":"сколько  СТОИТ доставка в Ош"},
+	 "draft_reply":"Доставка в Ош стоит 300 сом.","needs_human":false}`
+	var seen map[string]any
+	srv := fakeServer(t, 200, answer, &seen)
+	resp, err := invoke(t, srv.URL, "message_reply", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("message_reply.output.v1", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	out := string(resp.Output)
+	if !strings.Contains(out, `"draft_reply":null`) || !strings.Contains(out, `"needs_human":true`) {
+		t.Fatalf("a draft with an invented price must be withheld: %s", out)
+	}
+	if !strings.Contains(out, `"quote":"сколько стоит доставка в Ош"`) {
+		t.Fatalf("the quote must be the verbatim span of the message: %s", out)
+	}
+	schema, _ := json.Marshal(seen["response_format"])
+	if !strings.Contains(string(schema), `"enum":["m1","m3"]`) {
+		t.Fatalf("evidence must be limited to customer messages: %s", schema)
+	}
+
+	invented := `{"intent":"order","urgency":"normal","evidence":{"message_ref":"m3","quote":"Хочу купить 5 штук"},"draft_reply":"Хорошо","needs_human":true}`
+	srv2 := fakeServer(t, 200, invented, nil)
+	if _, err := invoke(t, srv2.URL, "message_reply", input); !modelgw.IsTransient(err) {
+		t.Fatalf("an intent without evidence must be resampled, got %v", err)
+	}
+}
+
 func TestKpiExplanationDropsInventedNumbers(t *testing.T) {
 	input := `{"language":"en","period":{"type":"month","start":"2026-10-01","end":"2026-11-01"},
 	 "previous_period":{"type":"month","start":"2026-09-01","end":"2026-10-01"},

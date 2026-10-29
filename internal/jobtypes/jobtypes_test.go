@@ -19,6 +19,7 @@ func gateway(t *testing.T) *modelgw.Gateway {
 		"call_summary":      mock.Provider{},
 		"operations_digest": mock.Provider{},
 		"kpi_explanation":   mock.Provider{},
+		"message_reply":     mock.Provider{},
 	})
 	if err != nil {
 		t.Fatal(err)

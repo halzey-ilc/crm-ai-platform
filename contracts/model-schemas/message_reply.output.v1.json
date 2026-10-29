@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "message_reply.output.v1",
+  "description": "Classification of the customer's latest message and a reply draft for a person to review. The draft is never sent automatically; it may not contain numbers, links or e-mail addresses that are not in the conversation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "intent", "urgency", "evidence", "draft_reply", "needs_human", "language", "generator"],
+  "properties": {
+    "schema": { "const": "message_reply.output.v1" },
+    "intent": {
+      "type": "string",
+      "enum": ["question", "price_request", "order", "meeting_request", "complaint", "cancellation", "gratitude", "other"]
+    },
+    "urgency": { "type": "string", "enum": ["low", "normal", "high"] },
+    "evidence": {
+      "description": "The customer message that shows the intent and a verbatim fragment of it. Null only for intent \"other\".",
+      "anyOf": [
+        { "type": "null" },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["message_ref", "quote"],
+          "properties": {
+            "message_ref": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$" },
+            "quote": { "type": "string", "minLength": 3, "maxLength": 300 }
+          }
+        }
+      ]
+    },
+    "draft_reply": {
+      "description": "Null when no safe draft could be written; a person answers instead.",
+      "anyOf": [{ "type": "null" }, { "type": "string", "minLength": 1, "maxLength": 1000 }]
+    },
+    "needs_human": {
+      "type": "boolean",
+      "description": "True when the answer needs facts the conversation does not contain (prices, availability, dates) or a decision (complaint, cancellation)."
+    },
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "is_mock"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "is_mock": { "type": "boolean" }
+      }
+    }
+  }
+}

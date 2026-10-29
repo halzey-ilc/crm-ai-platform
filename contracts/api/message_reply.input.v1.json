@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "message_reply.input.v1",
+  "description": "The latest messages of one customer conversation, oldest first, ending with a customer message. Contact identifiers (phone numbers, usernames) and the contact's name are not included.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "channel", "messages"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "channel": { "type": "string", "enum": ["whatsapp", "telegram", "instagram", "email"] },
+    "messages": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "direction", "text"],
+        "properties": {
+          "ref": { "type": "string", "pattern": "^[A-Za-z0-9._:-]{1,64}$" },
+          "direction": {
+            "type": "string",
+            "enum": ["inbound", "outbound"],
+            "description": "inbound: written by the customer; outbound: written by the company."
+          },
+          "text": { "type": "string", "minLength": 1, "maxLength": 4096 }
+        }
+      }
+    }
+  }
+}
