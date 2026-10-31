@@ -124,8 +124,8 @@
 
 | Что | Направление | Чего не хватает |
 |---|---|---|
-| Проверка `kpi.explanation.v1` на настоящей модели | Business Analyst | GPU-сервер или замер без фоновой нагрузки |
-| Оценка `message.reply.v1` и `deal.coach.v1` на настоящей модели | Communication Assistant, Sales Coach | GPU-сервер или замер без фоновой нагрузки |
+| Проверка `kpi.explanation.v1` на настоящей модели | Business Analyst | прогон `notebooks/kaggle_gpu_eval.ipynb` на бесплатном GPU Kaggle (блокнот и наборы готовы, прогона ещё не было) |
+| Оценка `message.reply.v1` и `deal.coach.v1` на настоящей модели | Communication Assistant, Sales Coach | тот же прогон на Kaggle; смысл ответов читает человек |
 | Цены и наличие товаров в черновиках | Communication Assistant | прайс-лист компании как данные CRM |
 | Нормальная скорость LLM в продакшене | все | сервер с GPU |
 | Транскрибация ru/ky, разделение по говорящим | Call Intelligence | записи звонков, согласия клиентов, GPU |

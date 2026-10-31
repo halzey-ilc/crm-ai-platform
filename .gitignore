@@ -5,6 +5,7 @@ secrets/
 
 # Go
 /bin/
+/dist/
 *.test
 coverage.out
 
