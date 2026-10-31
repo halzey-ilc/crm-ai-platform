@@ -196,9 +196,3 @@ func languageName(code string) string {
 		return "the same language as the input text"
 	}
 }
-
-// how to setter with and create snd ffvhgfuvf v
-
-// const fn main ():: f= fettue dv cdhv tvhhutyhnkfvk
-
-//create ans setter with creatful and we make
