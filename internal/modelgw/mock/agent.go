@@ -16,6 +16,9 @@ const TaskAgentPlan = "agent_plan"
 // TaskAgentPlanV2 also offers schedule_meeting and move_deal_stage.
 const TaskAgentPlanV2 = "agent_plan_v2"
 
+// TaskAgentPlanV3 is v2 with conversation history; the mock ignores the history.
+const TaskAgentPlanV3 = "agent_plan_v3"
+
 var (
 	taskStems     = []string{"задач", "напомн", "перезвон", "позвон", "тапшырма", "эскерт", "task", "remind", "call back"}
 	noteStems     = []string{"заметк", "запиши", "запис", "жазып", "note", "write down"}

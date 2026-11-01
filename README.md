@@ -30,6 +30,7 @@ AI-задачи и возвращает проверенные структур�
 | `risk.review.v1` | Risk & Anomaly | `scripts/e2e_risk.sh` |
 | `agent.plan.v1` | Agent Runtime | `scripts/e2e_agent.sh` |
 | `agent.plan.v2` (встреча, этап сделки) | Agent Runtime | только unit-тесты (CRM не подключена) |
+| `agent.plan.v3` (v2 + история разговора) | Agent Runtime | `evaluation/datasets/agent_dialog.synthetic.v1.jsonl` (CRM не подключена) |
 | `call.transcribe.v1` + `/v1/audio/*` (речь в текст, Whisper) | Call Intelligence | `scripts/smoke_speech.sh` (без CRM; `make up-speech`) |
 | `knowledge.answer.v1` + `/v1/knowledge/*` | Knowledge Assistant | `scripts/smoke_knowledge.sh` (без CRM) |
 

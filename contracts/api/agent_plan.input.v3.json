@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "agent_plan.input.v3",
+  "description": "As v2, plus history: the earlier turns of the same conversation, oldest first, so the user can refine a plan ('better on Tuesday, same time'). The CRM keeps the conversation and sends the recent turns; the AI Platform stores none of it. Actions are proposed only for the latest request; nothing is executed until the user confirms each action.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "today", "request", "tools", "subjects"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "today": { "type": "string", "format": "date" },
+    "request": { "type": "string", "minLength": 1, "maxLength": 1000 },
+    "history": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "text"],
+        "properties": {
+          "role": { "type": "string", "enum": ["user", "assistant"] },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "description": "For assistant turns the CRM describes what was proposed, e.g. 'Proposed: schedule_meeting 2026-11-02T15:00, 60 min'."
+          }
+        }
+      }
+    },
+    "tools": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "type": "string", "enum": ["create_task", "log_note", "request_deal_brief", "schedule_meeting", "move_deal_stage"] }
+    },
+    "subjects": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ref", "kind", "title"],
+        "properties": {
+          "ref": { "type": "string", "pattern": "^(deal|customer):[0-9a-f-]{36}$" },
+          "kind": { "type": "string", "enum": ["deal", "customer"] },
+          "title": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "stage": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "stages": {
+            "type": "array",
+            "maxItems": 50,
+            "uniqueItems": true,
+            "items": { "type": "string", "minLength": 1, "maxLength": 100 }
+          }
+        }
+      }
+    }
+  }
+}

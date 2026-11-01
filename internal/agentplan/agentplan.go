@@ -21,11 +21,18 @@ type Subject struct {
 	Stages []string `json:"stages,omitempty"`
 }
 
-// Input is agent_plan.input.v1 or v2.
+// Turn is one earlier message of the conversation (v3).
+type Turn struct {
+	Role string `json:"role"` // user or assistant
+	Text string `json:"text"`
+}
+
+// Input is agent_plan.input.v1, v2 or v3.
 type Input struct {
 	Language string    `json:"language"`
 	Today    string    `json:"today"`
 	Request  string    `json:"request"`
+	History  []Turn    `json:"history,omitempty"`
 	Tools    []string  `json:"tools"`
 	Subjects []Subject `json:"subjects"`
 }

@@ -298,6 +298,44 @@ func TestAgentPlanKeepsOnlyValidActions(t *testing.T) {
 	}
 }
 
+func TestAgentPlanV3SendsHistoryAndKeepsTheV2Contract(t *testing.T) {
+	deal := "deal:11111111-1111-4111-8111-111111111111"
+	input := `{"language":"ru","today":"2026-10-29","request":"Лучше во вторник, в то же время",
+	 "history":[{"role":"user","text":"Назначь встречу с клиентом в понедельник в 15:00"},
+	            {"role":"assistant","text":"Предложено: schedule_meeting 2026-11-02T15:00, 60 мин"}],
+	 "tools":["schedule_meeting"],"subjects":[{"ref":"` + deal + `","kind":"deal","title":"A"}]}`
+	answer := `{"can_do":true,"actions":[{"tool":"schedule_meeting","subject_ref":"` + deal + `",
+	  "title":"Встреча с клиентом","start":"2026-11-03T15:00","duration_minutes":60,"reason":"Перенос на вторник"}]}`
+	var seen map[string]any
+	srv := fakeServer(t, 200, answer, &seen)
+	resp, err := invoke(t, srv.URL, "agent_plan_v3", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("agent_plan.output.v2", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	if !strings.Contains(string(resp.Output), `"start":"2026-11-03T15:00"`) {
+		t.Fatalf("the refined meeting must be kept: %s", resp.Output)
+	}
+	user := seen["messages"].([]any)[1].(map[string]any)["content"].(string)
+	if !strings.Contains(user, `"earlier_requests":["Назначь встречу`) || !strings.Contains(user, `"already_proposed":["Предложено: schedule_meeting`) {
+		t.Fatalf("earlier turns must reach the model, split by role: %s", user)
+	}
+	if !strings.Contains(user, `"вторник":"2026-11-03 Tuesday"`) {
+		t.Fatalf("day words must arrive resolved to dates: %s", user)
+	}
+	system := seen["messages"].([]any)[0].(map[string]any)["content"].(string)
+	if !strings.Contains(system, "latest request alone") {
+		t.Fatal("the prompt must say that history only explains the latest request")
+	}
+	// 2026-10-29 is a Thursday: the model gets weekdays from a table, not from arithmetic.
+	if !strings.Contains(system, "2026-10-30 Friday") || !strings.Contains(system, "2026-11-03 Tuesday") {
+		t.Fatalf("the prompt must carry a two-week calendar: %s", system)
+	}
+}
+
 func TestAgentPlanV2OffersStagesOnceAndDropsPastMeetings(t *testing.T) {
 	deal := "deal:11111111-1111-4111-8111-111111111111"
 	other := "deal:22222222-2222-4222-8222-222222222222"

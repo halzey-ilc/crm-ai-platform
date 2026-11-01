@@ -34,6 +34,14 @@ func AgentPlanV2() Definition {
 	return d
 }
 
+// AgentPlanV3 is v2 with the earlier turns of the conversation, so the user can
+// refine a proposal ("better on Tuesday"). The output contract is v2's.
+func AgentPlanV3() Definition {
+	d := AgentPlanV2()
+	d.Type, d.Task, d.InputSchema = "agent.plan.v3", "agent_plan_v3", "agent_plan.input.v3"
+	return d
+}
+
 func groundAgentPlan(input, output json.RawMessage) error {
 	in, err := agentplan.Parse(input)
 	if err != nil {

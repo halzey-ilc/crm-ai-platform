@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"crmai/internal/agentplan"
 )
@@ -15,6 +16,9 @@ const TaskAgentPlan = "agent_plan"
 
 // TaskAgentPlanV2 also offers schedule_meeting and move_deal_stage.
 const TaskAgentPlanV2 = "agent_plan_v2"
+
+// TaskAgentPlanV3 is v2 with the earlier turns of the conversation.
+const TaskAgentPlanV3 = "agent_plan_v3"
 
 const agentSystem = `You are a CRM assistant. Turn the user's request into at most 3 proposed actions,
 using ONLY the tools and records listed. You do not execute anything: the user confirms each action.
@@ -27,7 +31,29 @@ First answer can_do: true only if these tools do what the user asks; false if th
 for something no listed tool does (for example deleting, sending or paying) or a date or time
 the user did not give is needed. With can_do false, actions is []. Never use log_note to record
 a request you cannot carry out. Every action needs a short reason.
-Today is %s. Write title, body and reason in %s. Answer with JSON only.`
+"earlier_requests" and "already_proposed", when present, are the earlier turns of this
+conversation. Use them only to understand the latest request ("it", "the same time", "better on
+Tuesday") and propose actions for the latest request alone. Never propose again anything listed
+in "already_proposed" unless the latest request changes it.
+"dates" gives the exact date of each day word in the request: copy those dates, never count
+days yourself. Today is %s. Calendar:
+%s
+Write title, body and reason in %s. Answer with JSON only.`
+
+// calendar lists the next 14 days with their weekdays. Models miscount weekdays
+// ("до пятницы" became Saturday in 3 of 3 runs); a lookup table does not.
+func calendar(today string) string {
+	t, err := time.Parse("2006-01-02", today)
+	if err != nil {
+		return ""
+	}
+	lines := make([]string, 0, 15)
+	for i := 0; i <= 14; i++ {
+		d := t.AddDate(0, 0, i)
+		lines = append(lines, d.Format("2006-01-02")+" "+d.Weekday().String())
+	}
+	return strings.Join(lines, "\n")
+}
 
 func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSchema string) (json.RawMessage, error) {
 	in, err := agentplan.Parse(raw)
@@ -110,12 +136,33 @@ func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSche
 			{"actions", map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"anyOf": variants}}},
 		},
 	}
-	user, _ := json.Marshal(map[string]any{"request": in.Request, "tools": in.Tools, "records": in.Subjects})
+	prompt := map[string]any{"request": in.Request, "tools": in.Tools, "records": in.Subjects}
+	if hints := agentplan.DateHints(in.Today, in.Request); len(hints) > 0 {
+		prompt["dates"] = hints
+	}
+	// Split by role: in one mixed list the model re-proposed what it had already
+	// proposed (3 of 3 runs of dialog-en-01).
+	var asked, proposed []string
+	for _, t := range in.History {
+		if t.Role == "assistant" {
+			proposed = append(proposed, t.Text)
+		} else {
+			asked = append(asked, t.Text)
+		}
+	}
+	if len(asked) > 0 {
+		prompt["earlier_requests"] = asked
+	}
+	if len(proposed) > 0 {
+		prompt["already_proposed"] = proposed
+	}
+	user, _ := json.Marshal(prompt)
 	var ans struct {
 		CanDo   bool               `json:"can_do"`
 		Actions []agentplan.Action `json:"actions"`
 	}
-	if err := p.complete(ctx, fmt.Sprintf(agentSystem, in.Today, languageName(in.Language)), "Request:\n"+string(user), schema, 500, &ans); err != nil {
+	system := fmt.Sprintf(agentSystem, in.Today, calendar(in.Today), languageName(in.Language))
+	if err := p.complete(ctx, system, "Request:\n"+string(user), schema, 500, &ans); err != nil {
 		return nil, err
 	}
 	if !ans.CanDo {
@@ -125,7 +172,9 @@ func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSche
 	dropped := 0
 	for _, a := range ans.Actions {
 		a.Title, a.Body, a.Reason = strings.TrimSpace(a.Title), strings.TrimSpace(a.Body), strings.TrimSpace(a.Reason)
-		if in.Check(a) != "" || (a.Tool == "create_task" && a.Title == "") || (a.Tool == "log_note" && a.Body == "") {
+		// A repeat of an earlier proposal: the prompt rule alone failed in 3 of 3 runs.
+		if in.Check(a) != "" || (a.Tool == "create_task" && a.Title == "") || (a.Tool == "log_note" && a.Body == "") ||
+			agentplan.AlreadyProposed(in.History, a) || !agentplan.Requested(a.Tool, in.Request) {
 			dropped++
 			continue
 		}
