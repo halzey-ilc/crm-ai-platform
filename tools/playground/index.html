@@ -44,6 +44,8 @@ blockquote { margin: 2px 0; padding: 4px 10px; border-left: 3px solid var(--acce
 details { margin-top: 14px; } summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 pre { white-space: pre-wrap; word-break: break-word; font: 12px/1.45 ui-monospace, Consolas, monospace; background: var(--bg);
   border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.wait { margin: 0; padding: 14px; border-radius: 8px; background: var(--accent-bg); color: var(--accent); font-size: 15px; }
+#result { scroll-margin-top: 16px; }
 .err { color: var(--bad); background: var(--bad-bg); border-radius: 8px; padding: 8px 10px; font-size: 14px; }
 </style>
 </head>
@@ -160,8 +162,15 @@ async function send() {
   try { input = JSON.parse($("input").value); } catch (e) { $("status").textContent = "Вход — не JSON: " + e.message; return; }
   $("send").disabled = true;
   const t0 = Date.now();
+  // The answer panel shows the wait too: on a narrow window it sits below the input.
+  const wait = el("p", "wait", "Модель думает… 0 с");
+  $("result").innerHTML = ""; $("result").append(wait);
+  $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   clearInterval(timer);
-  timer = setInterval(() => { $("status").textContent = "Модель думает… " + Math.round((Date.now() - t0) / 1000) + " с"; }, 1000);
+  timer = setInterval(() => {
+    const s = Math.round((Date.now() - t0) / 1000);
+    wait.textContent = $("status").textContent = "Модель думает… " + s + " с" + (s > 90 ? " (очередь: модель занята другим запросом)" : "");
+  }, 1000);
   try {
     const r = await fetch("/api/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type: ex.type, input }) });
     let job = await readJob(r);
@@ -170,7 +179,8 @@ async function send() {
       job = await readJob(await fetch("/api/jobs/" + job.id));
     }
     showResult(job);
-    $("status").textContent = "";
+    $("status").textContent = "Ответ готов ↓";
+    $("result").scrollIntoView({ behavior: "smooth", block: "start" });
   } catch (e) {
     $("result").innerHTML = ""; $("result").append(el("p", "err", e.message)); $("status").textContent = "";
   } finally { clearInterval(timer); $("send").disabled = false; }
