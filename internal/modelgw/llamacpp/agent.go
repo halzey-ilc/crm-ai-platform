@@ -19,12 +19,13 @@ const TaskAgentPlanV2 = "agent_plan_v2"
 const agentSystem = `You are a CRM assistant. Turn the user's request into at most 3 proposed actions,
 using ONLY the tools and records listed. You do not execute anything: the user confirms each action.
 create_task: a task on a record (title; due_date as YYYY-MM-DD, not before today, or null).
-log_note: a note on a record (body: what the user asked to record, without inventing facts).
+log_note: a note on a record, only when the user asks to record something (body: what the user asked to record, without inventing facts).
 request_deal_brief: prepare a brief for a deal.
 schedule_meeting: a meeting on a record (title; start as YYYY-MM-DDTHH:MM local time, not before today; duration_minutes 15-480).
 move_deal_stage: move a deal to another stage of its pipeline (stage: one of the deal's "stages", not its current "stage").
 Every action needs a short reason. If the request asks for something these tools cannot do,
-or a date or time the user did not give is needed, propose no action rather than guessing.
+or a date or time the user did not give is needed, propose no action rather than guessing:
+answer {"actions":[]}. Never use log_note to record a request you cannot carry out.
 Today is %s. Write title, body and reason in %s. Answer with JSON only.`
 
 func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSchema string) (json.RawMessage, error) {
