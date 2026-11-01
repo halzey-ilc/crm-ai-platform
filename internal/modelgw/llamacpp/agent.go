@@ -68,13 +68,14 @@ func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSche
 		case "create_task":
 			props = append(props,
 				field{"title", map[string]any{"type": "string", "minLength": 1, "maxLength": 200}},
-				field{"due_date", map[string]any{"anyOf": []any{map[string]any{"type": "null"}, map[string]any{"type": "string", "pattern": `^\d{4}-\d{2}-\d{2}$`}}}})
+				field{"due_date", map[string]any{"anyOf": []any{map[string]any{"type": "null"}, map[string]any{"type": "string", "pattern": `^[0-9]{4}-[0-9]{2}-[0-9]{2}$`}}}})
 		case "log_note":
 			props = append(props, field{"body", map[string]any{"type": "string", "minLength": 1, "maxLength": 1000}})
 		case "schedule_meeting":
+			// [0-9], not \d: the llama.cpp grammar converter rejects \d and accepts any string.
 			props = append(props,
 				field{"title", map[string]any{"type": "string", "minLength": 1, "maxLength": 200}},
-				field{"start", map[string]any{"type": "string", "pattern": `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$`}},
+				field{"start", map[string]any{"type": "string", "pattern": `^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}$`}},
 				field{"duration_minutes", map[string]any{"type": "integer", "minimum": agentplan.MinMeetingMinutes, "maximum": agentplan.MaxMeetingMinutes}})
 		case "move_deal_stage":
 			// The grammar allows the stages of the listed deals; Check ties a stage to its deal.
