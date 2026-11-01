@@ -58,15 +58,18 @@ func run() error {
 	}
 	defer store.Close()
 	models, err := platform.ModelGateway(types, platform.Providers{
-		Enabled:           cfg.Providers,
-		LlamaCppURL:       cfg.LlamaCppURL,
-		LlamaCppModel:     cfg.LlamaCppModel,
-		WhisperURL:        cfg.WhisperURL,
-		WhisperModel:      cfg.WhisperModel,
-		WhisperKyURL:      cfg.WhisperKyURL,
-		WhisperKyLanguage: cfg.WhisperKyLanguage,
-		Audio:             store,
-		Log:               log,
+		Enabled:            cfg.Providers,
+		LlamaCppURL:        cfg.LlamaCppURL,
+		LlamaCppModel:      cfg.LlamaCppModel,
+		LlamaCppLargeURL:   cfg.LlamaCppLargeURL,
+		LlamaCppLargeModel: cfg.LlamaCppLargeModel,
+		LargeTasks:         cfg.LlamaCppLargeTasks,
+		WhisperURL:         cfg.WhisperURL,
+		WhisperModel:       cfg.WhisperModel,
+		WhisperKyURL:       cfg.WhisperKyURL,
+		WhisperKyLanguage:  cfg.WhisperKyLanguage,
+		Audio:              store,
+		Log:                log,
 	})
 	if err != nil {
 		return err

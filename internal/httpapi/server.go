@@ -44,6 +44,7 @@ func NewHandler(d Deps) http.Handler {
 	api := http.NewServeMux()
 	api.HandleFunc("POST /v1/jobs", h.requireScope(auth.ScopeJobsCreate, h.createJob))
 	api.HandleFunc("GET /v1/jobs/{id}", h.requireScope(auth.ScopeJobsRead, h.getJob))
+	api.HandleFunc("GET /v1/jobs/{id}/events", h.requireScope(auth.ScopeJobsRead, h.jobEvents))
 	api.HandleFunc("POST /v1/jobs/{id}/cancel", h.requireScope(auth.ScopeJobsCancel, h.cancelJob))
 	api.HandleFunc("GET /v1/job-types", h.requireScope(auth.ScopeJobsRead, h.listJobTypes))
 	if d.Knowledge != nil {

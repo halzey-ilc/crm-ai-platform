@@ -67,6 +67,9 @@ func (s *statusRecorder) WriteHeader(code int) {
 	s.ResponseWriter.WriteHeader(code)
 }
 
+// Unwrap lets http.ResponseController reach Flush and write deadlines (job events).
+func (s *statusRecorder) Unwrap() http.ResponseWriter { return s.ResponseWriter }
+
 // withAccessLog logs method, route pattern, status and latency. Never bodies.
 func withAccessLog(log *slog.Logger, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +102,9 @@ func withLimits(timeout time.Duration, maxBody, maxUpload int64, next http.Handl
 		limit, budget := maxBody, timeout
 		if maxUpload > 0 && (strings.HasPrefix(r.URL.Path, "/v1/audio/") || strings.HasPrefix(r.URL.Path, "/v1/knowledge/files/")) {
 			limit, budget = maxUpload, max(timeout, 2*time.Minute)
+		}
+		if strings.HasPrefix(r.URL.Path, "/v1/jobs/") && strings.HasSuffix(r.URL.Path, "/events") {
+			budget = max(timeout, eventStreamLimit) // a job on a CPU can take minutes
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), budget)
 		defer cancel()

@@ -81,18 +81,41 @@ func ModelGateway(reg *jobtypes.Registry, cfg Providers) (*modelgw.Gateway, erro
 			return nil, fmt.Errorf("no enabled provider supports task %q", task)
 		}
 	}
+	// A second, larger llama.cpp model for the listed tasks (e.g. the agent and the
+	// sales coach on a GPU server), the default model for everything else.
+	if len(cfg.LargeTasks) > 0 {
+		if cfg.LlamaCppLargeURL == "" {
+			return nil, fmt.Errorf("AI_LLAMACPP_LARGE_TASKS needs AI_LLAMACPP_LARGE_URL")
+		}
+		large := llamacpp.Provider{BaseURL: cfg.LlamaCppLargeURL, Model: cfg.LlamaCppLargeModel,
+			HTTP: &http.Client{Timeout: 10 * time.Minute}, Log: cfg.Log}
+		known := map[string]bool{}
+		for _, t := range reg.Tasks() {
+			known[t] = true
+		}
+		for _, task := range cfg.LargeTasks {
+			if !known[task] || !large.Supports(task) {
+				return nil, fmt.Errorf("AI_LLAMACPP_LARGE_TASKS: %q is not a task the large model can serve", task)
+			}
+			routes[task] = large
+		}
+	}
 	return modelgw.New(routes)
 }
 
 // Providers selects and configures model providers.
 type Providers struct {
-	Enabled           []string
-	LlamaCppURL       string
-	LlamaCppModel     string
-	WhisperURL        string
-	WhisperModel      string
-	WhisperKyURL      string
-	WhisperKyLanguage string
+	Enabled       []string
+	LlamaCppURL   string
+	LlamaCppModel string
+	// Optional larger llama.cpp model and the tasks routed to it.
+	LlamaCppLargeURL   string
+	LlamaCppLargeModel string
+	LargeTasks         []string
+	WhisperURL         string
+	WhisperModel       string
+	WhisperKyURL       string
+	WhisperKyLanguage  string
 	// Audio is where the whispercpp provider reads uploaded recordings.
 	Audio whispercpp.AudioSource
 	Log   *slog.Logger

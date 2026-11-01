@@ -31,6 +31,11 @@ type Common struct {
 	// Local llama.cpp server, used when Providers contains "llamacpp".
 	LlamaCppURL   string
 	LlamaCppModel string
+	// Optional larger llama.cpp model for the listed tasks (AI_LLAMACPP_LARGE_TASKS,
+	// comma-separated task names such as agent_plan_v3,deal_coach).
+	LlamaCppLargeURL   string
+	LlamaCppLargeModel string
+	LlamaCppLargeTasks []string
 	// Local whisper.cpp servers, used when Providers contains "whispercpp". The
 	// Kyrgyz server (a fine-tuned model) is optional: Whisper has no Kyrgyz.
 	WhisperURL        string
@@ -182,6 +187,19 @@ func (l *loader) common() Common {
 			}
 			if len(c.LlamaCppModel) > 128 {
 				l.fail("AI_LLAMACPP_MODEL must be at most 128 characters")
+			}
+			c.LlamaCppLargeURL = l.str("AI_LLAMACPP_LARGE_URL", "")
+			c.LlamaCppLargeModel = l.str("AI_LLAMACPP_LARGE_MODEL", "local-gguf-large")
+			for _, t := range strings.Split(l.str("AI_LLAMACPP_LARGE_TASKS", ""), ",") {
+				if t = strings.TrimSpace(t); t != "" {
+					c.LlamaCppLargeTasks = append(c.LlamaCppLargeTasks, t)
+				}
+			}
+			if c.LlamaCppLargeURL != "" && !isHTTPURL(c.LlamaCppLargeURL) {
+				l.fail("AI_LLAMACPP_LARGE_URL must be an http(s) URL or empty")
+			}
+			if len(c.LlamaCppLargeTasks) > 0 && c.LlamaCppLargeURL == "" {
+				l.fail("AI_LLAMACPP_LARGE_TASKS needs AI_LLAMACPP_LARGE_URL")
 			}
 		case "whispercpp":
 			c.WhisperURL = l.str("AI_WHISPER_URL", "")

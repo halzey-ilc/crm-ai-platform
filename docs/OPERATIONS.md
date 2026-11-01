@@ -81,7 +81,14 @@ PostgreSQL недоступен, они **падают**, а не пропуск
 | `AI_REQUEST_TIMEOUT` | 10s | |
 | `AI_MAX_BODY_BYTES` | 1 MiB | |
 | `AI_RATE_LIMIT_RPS` / `_BURST` | 20 / 40 | на пару (tenant, subject), в рамках одной реплики |
-| `AI_MODEL_PROVIDERS` | mock | в production mock запрещён |
+| `AI_MAX_UPLOAD_BYTES` | 50 MiB | записи звонков и файлы базы знаний; максимум 100 MiB |
+| `AI_MODEL_PROVIDERS` | mock | `mock`, `llamacpp`, `whispercpp` через запятую; первый подходящий обслуживает задачу; в production mock запрещён |
+| `AI_LLAMACPP_URL` / `_MODEL` | — / local-gguf | основная модель |
+| `AI_LLAMACPP_LARGE_URL` / `_MODEL` / `_TASKS` | — | вторая, большая модель и список задач для неё через запятую (например `agent_plan_v3,deal_coach,risk_review`) |
+| `AI_WHISPER_URL` / `_MODEL` | — / whisper-large-v3-turbo-q5_0 | распознавание речи (ru, en) |
+| `AI_WHISPER_KY_URL` / `_KY_LANGUAGE` | — / auto | отдельная модель для кыргызского; без неё задачи `ky` завершаются ошибкой |
+| `AI_EMBED_URL` / `_MODEL` | — / multilingual-e5-small-q8_0 | поиск по смыслу в базе знаний; без него — только по словам |
+| `AI_AUDIO_RETENTION_HOURS` | 24 | записи звонков удаляются через столько часов |
 | `AI_WORKER_CONCURRENCY` | 4 | |
 | `AI_WORKER_POLL_INTERVAL` | 1s | |
 | `AI_WORKER_LEASE` | 15m | ≥ максимальный тайм-аут задачи + 30 с |
