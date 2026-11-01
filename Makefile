@@ -3,7 +3,8 @@ COMPOSE := docker compose --env-file .env -f deployments/local/compose.yaml
 TOOLKIT := training/toolkit
 
 .PHONY: help env up up-llm down logs ps build test test-integration lint vet fmt-check docker-build \
-        toolkit-install toolkit-test toolkit-experiment redact-test redact-build check token playground up-speech
+        toolkit-install toolkit-test toolkit-experiment redact-test redact-build check token playground up-speech \
+        eval-mock eval-baseline eval-llm
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -39,6 +40,18 @@ build: ## Build Go binaries into ./bin
 
 test: ## Go unit tests (no external services)
 	go test -race ./...
+
+eval-mock: ## Every evaluation case through its job type on the mock (as in CI)
+	go run ./tools/evalrun -provider mock -require-success evaluation/datasets/*.jsonl
+
+EVAL_BASELINE ?= evaluation/reports/baseline.json
+eval-baseline: ## Record EVAL_BASELINE: every case on a llama.cpp server (LLM=http://..., MODEL=name); run on the GPU server
+	go run ./tools/evalrun -provider llamacpp -llm $${LLM:-http://127.0.0.1:8080} -model $${MODEL:-local} \
+	  -out $(EVAL_BASELINE) evaluation/datasets/*.jsonl
+
+eval-llm: ## Every case on a llama.cpp server, failing on regressions against EVAL_BASELINE when it exists
+	go run ./tools/evalrun -provider llamacpp -llm $${LLM:-http://127.0.0.1:8080} -model $${MODEL:-local} \
+	  -out evaluation/reports/last.json $(if $(wildcard $(EVAL_BASELINE)),-baseline $(EVAL_BASELINE)) evaluation/datasets/*.jsonl
 
 test-integration: ## Go integration + tenant-isolation tests (needs `make up` for postgres)
 	set -a; source .env; set +a; \

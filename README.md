@@ -34,7 +34,8 @@ AI-задачи и возвращает проверенные структур�
 | `call.transcribe.v1` + `/v1/audio/*` (речь в текст, Whisper) | Call Intelligence | `scripts/smoke_speech.sh` (без CRM; `make up-speech`) |
 | `knowledge.answer.v1` + `/v1/knowledge/*` (TXT, PDF, DOCX; поиск по словам и смыслу) | Knowledge Assistant | `scripts/smoke_knowledge.sh`, `evaluation/kb_search_eval.py` (без CRM) |
 
-Контракты и правила проверки — [API_CONTRACTS.md](docs/API_CONTRACTS.md).
+Контракты и правила проверки — [API_CONTRACTS.md](docs/API_CONTRACTS.md). Как подключать экраны
+CRM — [FRONTEND_INTEGRATION.md](docs/FRONTEND_INTEGRATION.md).
 Скрипты `e2e_*` используют локальную CRM (`../crm-platform`). `AI_USE_LLM=0` запускает их на
 mock, `AI_USE_LLM=1` — на локальной модели.
 

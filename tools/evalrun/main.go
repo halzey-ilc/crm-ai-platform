@@ -92,25 +92,41 @@ func main() {
 	model := flag.String("model", "unknown-gguf", "label recorded as the model of each result")
 	out := flag.String("out", "", "write the full JSON report here")
 	only := flag.String("type", "", "run only cases of this job type")
+	requireSuccess := flag.Bool("require-success", false, "exit 1 if any case fails its contract or grounding (CI gate)")
+	baseline := flag.String("baseline", "", "earlier report: exit 1 if a case that passed there fails now")
 	flag.Parse()
 	if flag.NArg() == 0 {
 		fmt.Fprintln(os.Stderr, "usage: evalrun [flags] cases.jsonl ...")
 		os.Exit(2)
 	}
-	if err := run(*provider, *llmURL, *model, *out, *only, flag.Args()); err != nil {
+	results, err := run(*provider, *llmURL, *model, *out, *only, flag.Args())
+	if err != nil {
 		fmt.Fprintln(os.Stderr, "evalrun:", err)
+		os.Exit(1)
+	}
+	var prior []caseResult
+	if *baseline != "" {
+		if prior, err = loadReport(*baseline); err != nil {
+			fmt.Fprintln(os.Stderr, "evalrun:", err)
+			os.Exit(1)
+		}
+	}
+	if problems := gate(results, *requireSuccess, prior); len(problems) > 0 {
+		for _, p := range problems {
+			fmt.Fprintln(os.Stderr, "FAIL", p)
+		}
 		os.Exit(1)
 	}
 }
 
-func run(provider, llmURL, model, out, only string, files []string) error {
+func run(provider, llmURL, model, out, only string, files []string) ([]caseResult, error) {
 	schemas, err := contracts.Load()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	types, err := jobtypes.Builtin(schemas)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	gw, err := platform.ModelGateway(types, platform.Providers{
 		Enabled:       []string{provider},
@@ -119,11 +135,11 @@ func run(provider, llmURL, model, out, only string, files []string) error {
 		Log:           slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	cases, err := load(files)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var results []caseResult
 	for _, c := range cases {
@@ -144,14 +160,14 @@ func run(provider, llmURL, model, out, only string, files []string) error {
 		}
 		raw, err := json.MarshalIndent(report, "", "  ")
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if err := os.WriteFile(out, append(raw, '\n'), 0o644); err != nil {
-			return err
+			return nil, err
 		}
 		fmt.Println("report:", out)
 	}
-	return nil
+	return results, nil
 }
 
 func load(files []string) ([]evalCase, error) {

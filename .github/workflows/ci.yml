@@ -42,6 +42,10 @@ jobs:
         env:
           AI_TEST_OWNER_URL: postgres://ai_owner:ci-owner-password-not-secret@127.0.0.1:5432/postgres?sslmode=disable
         run: go test -race -count=1 -tags integration ./tests/integration/...
+      - name: evaluation datasets through every job type (mock, no model)
+        # Every synthetic case must pass its input contract, the output contract and
+        # the grounding checks; a broken dataset, contract or check fails here.
+        run: go run ./tools/evalrun -provider mock -require-success evaluation/datasets/*.jsonl
       - name: govulncheck
         run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
