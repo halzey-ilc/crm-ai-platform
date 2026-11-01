@@ -3,7 +3,7 @@ COMPOSE := docker compose --env-file .env -f deployments/local/compose.yaml
 TOOLKIT := training/toolkit
 
 .PHONY: help env up up-llm down logs ps build test test-integration lint vet fmt-check docker-build \
-        toolkit-install toolkit-test toolkit-experiment redact-test redact-build check token
+        toolkit-install toolkit-test toolkit-experiment redact-test redact-build check token playground
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -52,6 +52,9 @@ docker-build: ## Build all runtime images
 
 token: ## Mint a local dev token: make token TENANT=demo
 	@set -a; source .env; set +a; go run ./tools/devtoken -tenant $${TENANT:-demo}
+
+playground: ## Web page to try job types by hand: http://127.0.0.1:8095 (needs make up or up-llm)
+	@set -a; source .env; set +a; go run ./tools/playground
 
 toolkit-install: ## Install the Python training toolkit (uv)
 	cd $(TOOLKIT) && uv sync --all-groups
