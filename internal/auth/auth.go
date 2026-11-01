@@ -25,6 +25,8 @@ const (
 	ScopeJobsCancel = "ai.jobs.cancel"
 	// Put or delete company documents for the Knowledge Assistant.
 	ScopeKnowledgeWrite = "ai.knowledge.write"
+	// Upload or delete call recordings for transcription.
+	ScopeAudioWrite = "ai.audio.write"
 )
 
 // Principal is the verified caller.

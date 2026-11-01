@@ -92,12 +92,17 @@ func withRecover(log *slog.Logger, next http.Handler) http.Handler {
 	})
 }
 
-// withLimits bounds request time and body size.
-func withLimits(timeout time.Duration, maxBody int64, next http.Handler) http.Handler {
+// withLimits bounds request time and body size. Audio uploads get their own,
+// larger body limit and at least two minutes to arrive.
+func withLimits(timeout time.Duration, maxBody, maxAudio int64, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), timeout)
+		limit, budget := maxBody, timeout
+		if maxAudio > 0 && strings.HasPrefix(r.URL.Path, "/v1/audio/") {
+			limit, budget = maxAudio, max(timeout, 2*time.Minute)
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), budget)
 		defer cancel()
-		r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+		r.Body = http.MaxBytesReader(w, r.Body, limit)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
 }

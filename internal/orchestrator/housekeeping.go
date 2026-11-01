@@ -15,15 +15,23 @@ type Store interface {
 	PurgeFinished(ctx context.Context, days, limit int, runBy string) (int, error)
 }
 
-// Housekeeping refreshes queue gauges and applies the retention period.
+// AudioPurger deletes call recordings past their retention.
+type AudioPurger interface {
+	PurgeAudio(ctx context.Context, hours, limit int) (int, error)
+}
+
+// Housekeeping refreshes queue gauges and applies the retention periods.
 type Housekeeping struct {
 	Store         Store
 	WorkerID      string
 	RetentionDays int // 0 disables the cleanup
-	StatsEvery    time.Duration
-	PurgeEvery    time.Duration
-	BatchSize     int
-	Log           *slog.Logger
+	// Audio and AudioRetentionHours delete recordings; nil Audio disables it.
+	Audio               AudioPurger
+	AudioRetentionHours int
+	StatsEvery          time.Duration
+	PurgeEvery          time.Duration
+	BatchSize           int
+	Log                 *slog.Logger
 }
 
 // Run loops until ctx is cancelled.
@@ -63,8 +71,9 @@ func (h *Housekeeping) RefreshStats(ctx context.Context) {
 	}
 }
 
-// Purge deletes finished jobs past the retention period, batch by batch.
+// Purge deletes recordings and finished jobs past their retention, batch by batch.
 func (h *Housekeeping) Purge(ctx context.Context) {
+	h.purgeAudio(ctx)
 	if h.RetentionDays <= 0 {
 		return
 	}
@@ -85,5 +94,26 @@ func (h *Housekeeping) Purge(ctx context.Context) {
 	metrics.RetentionRuns.Inc("ok")
 	if total > 0 {
 		h.Log.Info("retention cleanup", "jobs_deleted", total, "older_than_days", h.RetentionDays)
+	}
+}
+
+func (h *Housekeeping) purgeAudio(ctx context.Context) {
+	if h.Audio == nil || h.AudioRetentionHours <= 0 {
+		return
+	}
+	total := 0
+	for ctx.Err() == nil {
+		n, err := h.Audio.PurgeAudio(ctx, h.AudioRetentionHours, h.BatchSize)
+		if err != nil {
+			h.Log.Error("audio cleanup failed", "err", err)
+			return
+		}
+		total += n
+		if n < h.BatchSize {
+			break
+		}
+	}
+	if total > 0 {
+		h.Log.Info("audio cleanup", "recordings_deleted", total, "older_than_hours", h.AudioRetentionHours)
 	}
 }

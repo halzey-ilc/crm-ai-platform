@@ -50,16 +50,6 @@ func run() error {
 		return fmt.Errorf("invalid configuration:\n%w", err)
 	}
 	log := platform.Logger("orchestrator", cfg.LogLevel)
-	models, err := platform.ModelGateway(types, platform.Providers{
-		Enabled:       cfg.Providers,
-		LlamaCppURL:   cfg.LlamaCppURL,
-		LlamaCppModel: cfg.LlamaCppModel,
-		Log:           log,
-	})
-	if err != nil {
-		return err
-	}
-
 	ctx, stop := platform.SignalContext()
 	defer stop()
 	store, err := postgres.Open(ctx, cfg.DatabaseURL)
@@ -67,6 +57,20 @@ func run() error {
 		return err
 	}
 	defer store.Close()
+	models, err := platform.ModelGateway(types, platform.Providers{
+		Enabled:           cfg.Providers,
+		LlamaCppURL:       cfg.LlamaCppURL,
+		LlamaCppModel:     cfg.LlamaCppModel,
+		WhisperURL:        cfg.WhisperURL,
+		WhisperModel:      cfg.WhisperModel,
+		WhisperKyURL:      cfg.WhisperKyURL,
+		WhisperKyLanguage: cfg.WhisperKyLanguage,
+		Audio:             store,
+		Log:               log,
+	})
+	if err != nil {
+		return err
+	}
 
 	// Liveness only: the worker is alive while its loop runs. Readiness of the
 	// database is checked by the loop itself (claim errors are logged).
@@ -106,13 +110,15 @@ func run() error {
 		Log:          log,
 	}
 	hk := &orchestrator.Housekeeping{
-		Store:         store,
-		WorkerID:      cfg.WorkerID,
-		RetentionDays: cfg.RetentionDays,
-		StatsEvery:    30 * time.Second,
-		PurgeEvery:    time.Hour,
-		BatchSize:     1000,
-		Log:           log,
+		Store:               store,
+		WorkerID:            cfg.WorkerID,
+		RetentionDays:       cfg.RetentionDays,
+		Audio:               store,
+		AudioRetentionHours: cfg.AudioRetentionHours,
+		StatsEvery:          30 * time.Second,
+		PurgeEvery:          time.Hour,
+		BatchSize:           1000,
+		Log:                 log,
 	}
 	go hk.Run(ctx)
 	log.Info("orchestrator started", "worker_id", cfg.WorkerID, "concurrency", cfg.Concurrency,

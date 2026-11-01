@@ -270,6 +270,39 @@ POST   /v1/knowledge/ask               scope ai.jobs.create, Idempotency-Key
 
 Если ничего не найдено, модель не вызывается и возвращается `insufficient_data: true`.
 
+### Записи звонков и `call.transcribe.v1` 🟠 (на стороне AI; CRM ещё не подключена)
+
+```
+PUT    /v1/audio/{ref}   scope ai.audio.write, тело — сам файл, Content-Type: audio/*
+       (wav, mpeg/mp3, ogg, mp4/m4a, flac, webm)  -> {ref, bytes, sha256, changed}
+DELETE /v1/audio/{ref}   scope ai.audio.write  -> 204 | 404
+POST   /v1/jobs          {"type":"call.transcribe.v1","input":{
+                           "audio_ref": "<ref>", "language": "ru"|"ky"|"en",
+                           "channels": "mono"|"manager_left"|"manager_right", "call_ref"?}}
+```
+
+**Записи.**
+- До 50 МБ (`AI_MAX_AUDIO_BYTES`, не больше 100 МБ); у остальных запросов свой, маленький лимит.
+- Хранятся в PostgreSQL с изоляцией по компаниям (RLS) и **удаляются через 24 часа**
+  (`AI_AUDIO_RETENTION_HOURS`) — их нужно только расшифровать. CRM может удалить раньше.
+- В задаче — только ссылка на запись, сам звук в задачу не попадает.
+
+**Каналы.** В телефонии обычно стерео: менеджер в одном канале, клиент в другом. Тогда
+`manager_left` или `manager_right`, и у каждой реплики будет `speaker: manager|customer`.
+Для моно-записи `speaker` всегда `unknown`: разделение голосов в одном канале — 📐.
+
+**Ответ** (`call_transcript.output.v1`): `segments[]` `{start_s, end_s, speaker, text}` по
+порядку, `text` — все реплики подряд (готовый вход для `call.summary.v2`), `duration_s`,
+`insufficient_data` (речи нет — сегментов нет). Проверка отклоняет: другой язык, чем
+запрошен; реплики не по порядку или за пределами записи; говорящего в моно-записи; `text`,
+не совпадающий с репликами. Тишина и теги вида `[BLANK_AUDIO]` отбрасываются.
+
+**Языки.** Модель — Whisper (whisper.cpp). **В Whisper нет кыргызского**: для `ky` нужен
+отдельный сервер с дообученной моделью (`AI_WHISPER_KY_URL`); без него задача сразу
+завершается ошибкой `provider_error`, а не возвращает текст на другом языке.
+
+Это машинная расшифровка: в ней бывают ошибки, и сама по себе она не доказательство.
+
 ## 4. Ошибки (`ai.error.v1`)
 
 ```json

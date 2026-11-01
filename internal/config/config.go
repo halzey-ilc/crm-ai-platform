@@ -31,6 +31,12 @@ type Common struct {
 	// Local llama.cpp server, used when Providers contains "llamacpp".
 	LlamaCppURL   string
 	LlamaCppModel string
+	// Local whisper.cpp servers, used when Providers contains "whispercpp". The
+	// Kyrgyz server (a fine-tuned model) is optional: Whisper has no Kyrgyz.
+	WhisperURL        string
+	WhisperModel      string
+	WhisperKyURL      string
+	WhisperKyLanguage string
 }
 
 // Gateway configures the HTTP gateway.
@@ -43,6 +49,7 @@ type Gateway struct {
 	AuthMaxTokenTTL time.Duration
 	RequestTimeout  time.Duration
 	MaxBodyBytes    int64
+	MaxAudioBytes   int64 // PUT /v1/audio/{ref}
 	RateLimitRPS    float64
 	RateLimitBurst  int
 	// Prometheus /metrics on a separate listener; empty disables it.
@@ -59,6 +66,8 @@ type Orchestrator struct {
 	HealthAddr   string // also serves /metrics
 	// Finished jobs older than this many days are deleted; 0 keeps them forever.
 	RetentionDays int
+	// Call recordings are deleted this many hours after upload (personal data).
+	AudioRetentionHours int
 }
 
 // Migrate configures the schema migrator.
@@ -171,14 +180,32 @@ func (l *loader) common() Common {
 			if len(c.LlamaCppModel) > 128 {
 				l.fail("AI_LLAMACPP_MODEL must be at most 128 characters")
 			}
+		case "whispercpp":
+			c.WhisperURL = l.str("AI_WHISPER_URL", "")
+			c.WhisperModel = l.str("AI_WHISPER_MODEL", "whisper-large-v3-turbo-q5_0")
+			c.WhisperKyURL = l.str("AI_WHISPER_KY_URL", "")
+			c.WhisperKyLanguage = l.str("AI_WHISPER_KY_LANGUAGE", "auto")
+			if !isHTTPURL(c.WhisperURL) {
+				l.fail("AI_WHISPER_URL must be an http(s) URL when the whispercpp provider is enabled")
+			}
+			if c.WhisperKyURL != "" && !isHTTPURL(c.WhisperKyURL) {
+				l.fail("AI_WHISPER_KY_URL must be an http(s) URL or empty")
+			}
+			if len(c.WhisperModel) > 128 || len(c.WhisperKyLanguage) > 16 {
+				l.fail("AI_WHISPER_MODEL must be at most 128 and AI_WHISPER_KY_LANGUAGE at most 16 characters")
+			}
 		default:
-			l.fail("AI_MODEL_PROVIDERS contains an unknown provider (available: mock, llamacpp)")
+			l.fail("AI_MODEL_PROVIDERS contains an unknown provider (available: mock, llamacpp, whispercpp)")
 		}
 	}
 	if c.Env == EnvProduction && c.DatabaseURL != "" && !strings.Contains(c.DatabaseURL, "sslmode=verify-full") {
 		l.fail("AI_DATABASE_URL must use sslmode=verify-full in production")
 	}
 	return c
+}
+
+func isHTTPURL(s string) bool {
+	return strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://")
 }
 
 func (l *loader) err() error { return errors.Join(l.errs...) }
@@ -195,9 +222,11 @@ func loadGateway(l *loader) (Gateway, error) {
 		AuthMaxTokenTTL: l.duration("AI_AUTH_MAX_TOKEN_TTL", 10*time.Minute),
 		RequestTimeout:  l.duration("AI_REQUEST_TIMEOUT", 10*time.Second),
 		MaxBodyBytes:    int64(l.integer("AI_MAX_BODY_BYTES", 1<<20, 1024, 16<<20)),
-		RateLimitRPS:    float64(l.integer("AI_RATE_LIMIT_RPS", 20, 1, 10000)),
-		RateLimitBurst:  l.integer("AI_RATE_LIMIT_BURST", 40, 1, 10000),
-		MetricsAddr:     l.str("AI_METRICS_ADDR", ""),
+		// About 50 minutes of 128 kbit/s mp3; the database column allows 100 MB.
+		MaxAudioBytes:  int64(l.integer("AI_MAX_AUDIO_BYTES", 50<<20, 1<<20, 100<<20)),
+		RateLimitRPS:   float64(l.integer("AI_RATE_LIMIT_RPS", 20, 1, 10000)),
+		RateLimitBurst: l.integer("AI_RATE_LIMIT_BURST", 40, 1, 10000),
+		MetricsAddr:    l.str("AI_METRICS_ADDR", ""),
 	}
 	if g.MetricsAddr != "" && g.MetricsAddr == g.HTTPAddr {
 		l.fail("AI_METRICS_ADDR must differ from AI_HTTP_ADDR: metrics are not served on the public API port")
@@ -246,6 +275,8 @@ func loadOrchestrator(l *loader, maxJobTimeout time.Duration) (Orchestrator, err
 		HealthAddr: l.str("AI_WORKER_HEALTH_ADDR", ":8091"),
 		// Job inputs contain CRM text (call notes, messages): keep them only as long as needed.
 		RetentionDays: l.integer("AI_RETENTION_DAYS", 30, 0, 3650),
+		// Recordings are only needed until transcribed (retries included).
+		AudioRetentionHours: l.integer("AI_AUDIO_RETENTION_HOURS", 24, 1, 720),
 	}
 	if o.Lease < maxJobTimeout+30*time.Second {
 		l.fail("AI_WORKER_LEASE must exceed the longest job timeout (%s) by at least 30s", maxJobTimeout)

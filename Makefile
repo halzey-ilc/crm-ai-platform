@@ -3,7 +3,7 @@ COMPOSE := docker compose --env-file .env -f deployments/local/compose.yaml
 TOOLKIT := training/toolkit
 
 .PHONY: help env up up-llm down logs ps build test test-integration lint vet fmt-check docker-build \
-        toolkit-install toolkit-test toolkit-experiment redact-test redact-build check token playground
+        toolkit-install toolkit-test toolkit-experiment redact-test redact-build check token playground up-speech
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -18,8 +18,13 @@ up-llm: ## Start the stack with the local model (Qwen3.5-4B on llama.cpp) instea
 	./scripts/get_model.sh
 	$(COMPOSE) -f deployments/local/compose.llm.yaml up -d --build
 
+up-speech: ## up-llm plus speech recognition (Whisper large-v3-turbo on whisper.cpp) for call.transcribe.v1
+	./scripts/get_model.sh
+	AI_MODEL_REPO=ggerganov/whisper.cpp AI_MODEL_FILE=ggml-large-v3-turbo-q5_0.bin ./scripts/get_model.sh
+	$(COMPOSE) -f deployments/local/compose.llm.yaml -f deployments/local/compose.speech.yaml up -d --build
+
 down: ## Stop the stack (keeps the database volume)
-	$(COMPOSE) -f deployments/local/compose.llm.yaml down
+	$(COMPOSE) -f deployments/local/compose.llm.yaml -f deployments/local/compose.speech.yaml down
 
 logs: ## Follow service logs
 	$(COMPOSE) logs -f gateway orchestrator

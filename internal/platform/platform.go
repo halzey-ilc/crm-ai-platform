@@ -17,6 +17,7 @@ import (
 	"crmai/internal/modelgw"
 	"crmai/internal/modelgw/llamacpp"
 	"crmai/internal/modelgw/mock"
+	"crmai/internal/modelgw/whispercpp"
 )
 
 // Logger returns a JSON logger tagged with the service name.
@@ -28,7 +29,8 @@ func Logger(service, level string) *slog.Logger {
 
 // ModelGateway routes every task the registry needs to an enabled provider.
 // Startup fails if a task has no provider, so a misconfigured worker never
-// claims jobs it cannot run.
+// claims jobs it cannot run. Optional tasks (speech recognition) may stay
+// unrouted: their jobs then fail with provider_error.
 //
 // Providers are tried in the configured order: the first enabled provider that
 // supports a task serves it.
@@ -46,6 +48,16 @@ func ModelGateway(reg *jobtypes.Registry, cfg Providers) (*modelgw.Gateway, erro
 				HTTP: &http.Client{Timeout: 10 * time.Minute},
 				Log:  cfg.Log,
 			})
+		case whispercpp.Name:
+			providers = append(providers, whispercpp.Provider{
+				URL:        cfg.WhisperURL,
+				Model:      cfg.WhisperModel,
+				KyURL:      cfg.WhisperKyURL,
+				KyLanguage: cfg.WhisperKyLanguage,
+				Audio:      cfg.Audio,
+				HTTP:       &http.Client{Timeout: 15 * time.Minute},
+				Log:        cfg.Log,
+			})
 		default:
 			return nil, fmt.Errorf("unknown provider %q", name)
 		}
@@ -59,6 +71,13 @@ func ModelGateway(reg *jobtypes.Registry, cfg Providers) (*modelgw.Gateway, erro
 			}
 		}
 		if routes[task] == nil {
+			if reg.OptionalTask(task) {
+				delete(routes, task)
+				if cfg.Log != nil {
+					cfg.Log.Warn("optional task has no provider; its jobs will fail", "task", task)
+				}
+				continue
+			}
 			return nil, fmt.Errorf("no enabled provider supports task %q", task)
 		}
 	}
@@ -67,10 +86,16 @@ func ModelGateway(reg *jobtypes.Registry, cfg Providers) (*modelgw.Gateway, erro
 
 // Providers selects and configures model providers.
 type Providers struct {
-	Enabled       []string
-	LlamaCppURL   string
-	LlamaCppModel string
-	Log           *slog.Logger
+	Enabled           []string
+	LlamaCppURL       string
+	LlamaCppModel     string
+	WhisperURL        string
+	WhisperModel      string
+	WhisperKyURL      string
+	WhisperKyLanguage string
+	// Audio is where the whispercpp provider reads uploaded recordings.
+	Audio whispercpp.AudioSource
+	Log   *slog.Logger
 }
 
 // SignalContext is cancelled on SIGINT/SIGTERM.

@@ -25,10 +25,12 @@ type Deps struct {
 	Types          *jobtypes.Registry
 	Verifier       *auth.Verifier
 	Knowledge      KnowledgeStore // nil disables the /v1/knowledge endpoints
+	Audio          AudioStore     // nil disables the /v1/audio endpoints
 	Ready          Readiness
 	Log            *slog.Logger
 	RequestTimeout time.Duration
 	MaxBodyBytes   int64
+	MaxAudioBytes  int64
 	RateLimitRPS   float64
 	RateLimitBurst int
 }
@@ -45,6 +47,10 @@ func NewHandler(d Deps) http.Handler {
 		api.HandleFunc("PUT /v1/knowledge/documents/{ref}", h.requireScope(auth.ScopeKnowledgeWrite, h.putDocument))
 		api.HandleFunc("DELETE /v1/knowledge/documents/{ref}", h.requireScope(auth.ScopeKnowledgeWrite, h.deleteDocument))
 		api.HandleFunc("POST /v1/knowledge/ask", h.requireScope(auth.ScopeJobsCreate, h.ask))
+	}
+	if d.Audio != nil {
+		api.HandleFunc("PUT /v1/audio/{ref}", h.requireScope(auth.ScopeAudioWrite, h.putAudio))
+		api.HandleFunc("DELETE /v1/audio/{ref}", h.requireScope(auth.ScopeAudioWrite, h.deleteAudio))
 	}
 	api.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		writeError(w, r, http.StatusNotFound, "not_found", "no such endpoint")
@@ -71,7 +77,7 @@ func NewHandler(d Deps) http.Handler {
 	})
 
 	return withCorrelation(withRecover(d.Log, withAccessLog(d.Log,
-		withLimits(d.RequestTimeout, d.MaxBodyBytes, root))))
+		withLimits(d.RequestTimeout, d.MaxBodyBytes, d.MaxAudioBytes, root))))
 }
 
 type handlers struct{ d Deps }

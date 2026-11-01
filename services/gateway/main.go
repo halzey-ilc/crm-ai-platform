@@ -67,10 +67,12 @@ func run() error {
 		Types:          types,
 		Verifier:       verifier,
 		Knowledge:      store,
+		Audio:          store,
 		Ready:          store.Ready,
 		Log:            log,
 		RequestTimeout: cfg.RequestTimeout,
 		MaxBodyBytes:   cfg.MaxBodyBytes,
+		MaxAudioBytes:  cfg.MaxAudioBytes,
 		RateLimitRPS:   cfg.RateLimitRPS,
 		RateLimitBurst: cfg.RateLimitBurst,
 	})

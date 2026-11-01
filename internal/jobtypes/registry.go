@@ -28,6 +28,9 @@ type Definition struct {
 	// Ground checks semantic rules a schema cannot express, e.g. that every
 	// evidence quote occurs in the input. Nil means no extra checks.
 	Ground func(input, output json.RawMessage) error
+	// OptionalTask lets a deployment run without a provider for Task (e.g. no
+	// speech model); jobs of this type then fail with provider_error.
+	OptionalTask bool
 }
 
 // Registry holds the known job types.
@@ -57,7 +60,7 @@ func NewRegistry(schemas *contracts.Schemas, defs ...Definition) (*Registry, err
 
 // Builtin returns the registry with all job types shipped in this release.
 func Builtin(schemas *contracts.Schemas) (*Registry, error) {
-	return NewRegistry(schemas, CallSummaryV1(), CallSummaryV2(), OperationsDigestV1(), KpiExplanationV1(), MessageReplyV1(), DealCoachV1(), RiskReviewV1(), AgentPlanV1(), AgentPlanV2(), KnowledgeAnswerV1())
+	return NewRegistry(schemas, CallSummaryV1(), CallSummaryV2(), OperationsDigestV1(), KpiExplanationV1(), MessageReplyV1(), DealCoachV1(), RiskReviewV1(), AgentPlanV1(), AgentPlanV2(), KnowledgeAnswerV1(), CallTranscribeV1())
 }
 
 func (r *Registry) Get(jobType string) (Definition, bool) {
@@ -87,6 +90,20 @@ func (r *Registry) Tasks() []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// OptionalTask reports whether every job type using task allows it to be unrouted.
+func (r *Registry) OptionalTask(task string) bool {
+	found := false
+	for _, d := range r.defs {
+		if d.Task == task {
+			if !d.OptionalTask {
+				return false
+			}
+			found = true
+		}
+	}
+	return found
 }
 
 // Lookup implements jobs.TypeCatalog.

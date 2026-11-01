@@ -1,0 +1,50 @@
+# Optional overlay: speech recognition for call.transcribe.v1, on top of compose.llm.yaml.
+#
+#   make up-speech   # = compose.yaml + compose.llm.yaml + compose.speech.yaml
+#
+# Model: Whisper large-v3-turbo (MIT, OpenAI), q5_0 ggml from ggerganov/whisper.cpp on Hugging Face,
+# downloaded and sha256-checked by scripts/get_model.sh into $AI_MODELS_DIR (outside
+# git). Runtime: whisper.cpp server (MIT), CPU only, image pinned by digest; its
+# ffmpeg converts mp3/ogg/m4a uploads (--convert).
+#
+# Whisper has no Kyrgyz. A Kyrgyz model (fine-tuned Whisper converted to ggml) runs as
+# a second server and is set with AI_WHISPER_KY_URL; until then Kyrgyz jobs fail.
+name: crm-ai-platform
+
+services:
+  whisper:
+    image: ghcr.io/ggml-org/whisper.cpp@sha256:fd217ad984804beb6ed7eedf140a835e40b9644ea40ef39678c2cccd5875172b
+    # The image's entrypoint is `bash -c`: the command is one string.
+    command:
+      - >-
+        whisper-server --host 0.0.0.0 --port 8080
+        -m /models/${AI_WHISPER_MODEL_FILE:-ggml-large-v3-turbo-q5_0.bin}
+        --convert -t ${AI_WHISPER_THREADS:-4}
+    working_dir: /tmp
+    volumes:
+      - ${AI_MODELS_DIR:-${HOME}/.local/share/crm-ai-platform/models}:/models:ro
+    tmpfs:
+      - /tmp:size=512m
+    # Not published on the host: only the orchestrator sends recordings here.
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+  orchestrator:
+    environment:
+      # whispercpp first: the mock also claims the transcribe task.
+      AI_MODEL_PROVIDERS: whispercpp,llamacpp
+      AI_WHISPER_URL: http://whisper:8080
+      AI_WHISPER_MODEL: ${AI_WHISPER_MODEL:-whisper-large-v3-turbo-q5_0}
+      AI_WHISPER_KY_URL: ${AI_WHISPER_KY_URL:-}
+      AI_WHISPER_KY_LANGUAGE: ${AI_WHISPER_KY_LANGUAGE:-auto}
+    depends_on:
+      whisper: { condition: service_healthy }

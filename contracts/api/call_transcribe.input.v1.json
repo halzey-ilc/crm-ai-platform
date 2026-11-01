@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "call_transcribe.input.v1",
+  "description": "Input of the call.transcribe.v1 job: a call recording the CRM uploaded with PUT /v1/audio/{ref} for this tenant. The audio itself is not in the job input.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["audio_ref", "language", "channels"],
+  "properties": {
+    "audio_ref": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,64}$",
+      "description": "Reference given when the recording was uploaded."
+    },
+    "language": {
+      "type": "string",
+      "enum": ["ru", "ky", "en"],
+      "description": "Spoken language. Kyrgyz needs a separately configured speech model."
+    },
+    "channels": {
+      "type": "string",
+      "enum": ["mono", "manager_left", "manager_right"],
+      "description": "mono: one channel, speakers are not separated. manager_left / manager_right: a stereo recording where the manager is on that channel and the customer on the other (usual for telephony)."
+    },
+    "call_ref": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+      "description": "Opaque reference to the CRM call record. Not interpreted by the platform."
+    }
+  }
+}

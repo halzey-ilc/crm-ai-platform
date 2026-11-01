@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "call_transcript.output.v1",
+  "description": "Result of call.transcribe.v1: what was said, in order, with times and who spoke. speaker is manager or customer only for a stereo recording whose channels were declared in the input; otherwise unknown. insufficient_data is true when no speech was recognised; segments is then empty. The text is a machine transcript: it may contain recognition errors and is not evidence on its own.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "language", "duration_s", "segments", "text", "insufficient_data", "generator"],
+  "properties": {
+    "schema": { "const": "call_transcript.output.v1" },
+    "language": { "type": "string", "enum": ["ru", "ky", "en"] },
+    "duration_s": { "type": "number", "minimum": 0, "maximum": 14400 },
+    "segments": {
+      "type": "array",
+      "maxItems": 5000,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["start_s", "end_s", "speaker", "text"],
+        "properties": {
+          "start_s": { "type": "number", "minimum": 0 },
+          "end_s": { "type": "number", "minimum": 0 },
+          "speaker": { "type": "string", "enum": ["manager", "customer", "unknown"] },
+          "text": { "type": "string", "minLength": 1, "maxLength": 2000 }
+        }
+      }
+    },
+    "text": {
+      "type": "string",
+      "maxLength": 200000,
+      "description": "All segments joined; ready to pass to call.summary.v2 as its transcript."
+    },
+    "insufficient_data": { "type": "boolean" },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider", "model", "is_mock"],
+      "properties": {
+        "provider": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "model": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "is_mock": { "type": "boolean" }
+      }
+    }
+  }
+}
