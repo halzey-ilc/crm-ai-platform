@@ -90,7 +90,7 @@ func (p Provider) dealCoach(ctx context.Context, raw json.RawMessage) (json.RawM
 	keep := func(points []dealcoach.Point) []dealcoach.Point {
 		kept := []dealcoach.Point{}
 		for _, pt := range points {
-			pt.Text = strings.TrimSpace(pt.Text)
+			pt.Text, pt.Refs = strings.TrimSpace(pt.Text), unique(pt.Refs)
 			if dealcoach.Check(pt, known, allowed) == "" {
 				kept = append(kept, pt)
 			} else {

@@ -328,11 +328,11 @@ func (p Provider) operationsDigest(ctx context.Context, raw json.RawMessage) (js
 			continue
 		}
 		usedKind[it.Kind] = true
-		out.Items = append(out.Items, digestCited{Kind: it.Kind, Text: strings.TrimSpace(it.Text), FindingRefs: keep})
+		out.Items = append(out.Items, digestCited{Kind: it.Kind, Text: strings.TrimSpace(it.Text), FindingRefs: unique(keep)})
 	}
 	for _, rec := range ans.Recommendations {
 		if strings.TrimSpace(rec.Text) != "" && len(rec.FindingRefs) > 0 {
-			out.Recommendations = append(out.Recommendations, digestCited{Text: strings.TrimSpace(rec.Text), FindingRefs: rec.FindingRefs})
+			out.Recommendations = append(out.Recommendations, digestCited{Text: strings.TrimSpace(rec.Text), FindingRefs: unique(rec.FindingRefs)})
 		}
 	}
 	if len(out.Items) == 0 {

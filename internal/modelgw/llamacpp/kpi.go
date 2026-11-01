@@ -106,7 +106,7 @@ func (p Provider) kpiExplanation(ctx context.Context, raw json.RawMessage) (json
 				dropped++
 				continue
 			}
-			kept = append(kept, kpiItem{MetricCodes: it.MetricCodes, Text: text})
+			kept = append(kept, kpiItem{MetricCodes: unique(it.MetricCodes), Text: text})
 		}
 		return kept, dropped
 	}

@@ -184,6 +184,54 @@ func (p Provider) complete(ctx context.Context, system, user string, schema map[
 	return nil
 }
 
+// unique drops repeated values, keeping the first of each. llama.cpp grammars
+// cannot enforce uniqueItems, so the model may repeat a ref the contract forbids twice.
+func unique(xs []string) []string {
+	seen := make(map[string]bool, len(xs))
+	out := xs[:0:0]
+	for _, x := range xs {
+		if !seen[x] {
+			seen[x] = true
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+// field is one property of an ordered object.
+type field struct {
+	Key   string
+	Value any
+}
+
+// ordered is a JSON object that keeps its keys in the given order. llama.cpp
+// builds the grammar in property order, while Go maps marshal sorted by key, so
+// the order decides which property the model has to write first.
+type ordered []field
+
+func (o ordered) MarshalJSON() ([]byte, error) {
+	var b bytes.Buffer
+	b.WriteByte('{')
+	for i, f := range o {
+		if i > 0 {
+			b.WriteByte(',')
+		}
+		k, err := json.Marshal(f.Key)
+		if err != nil {
+			return nil, err
+		}
+		v, err := json.Marshal(f.Value)
+		if err != nil {
+			return nil, err
+		}
+		b.Write(k)
+		b.WriteByte(':')
+		b.Write(v)
+	}
+	b.WriteByte('}')
+	return b.Bytes(), nil
+}
+
 func languageName(code string) string {
 	switch code {
 	case "ru":

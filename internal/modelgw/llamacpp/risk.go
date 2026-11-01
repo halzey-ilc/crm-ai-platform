@@ -128,7 +128,7 @@ func (p Provider) riskReview(ctx context.Context, raw json.RawMessage) (json.Raw
 			continue
 		}
 		used[it.Kind] = true
-		out.Items = append(out.Items, riskreview.Cited{Kind: it.Kind, Text: it.Text, SignalRefs: keep})
+		out.Items = append(out.Items, riskreview.Cited{Kind: it.Kind, Text: it.Text, SignalRefs: unique(keep)})
 	}
 	for _, c := range ans.Checks {
 		c.Text = strings.TrimSpace(c.Text)
@@ -136,7 +136,7 @@ func (p Provider) riskReview(ctx context.Context, raw json.RawMessage) (json.Raw
 			dropped++
 			continue
 		}
-		out.Checks = append(out.Checks, riskreview.Cited{Text: c.Text, SignalRefs: c.SignalRefs})
+		out.Checks = append(out.Checks, riskreview.Cited{Text: c.Text, SignalRefs: unique(c.SignalRefs)})
 	}
 	if dropped > 0 && p.Log != nil {
 		p.Log.Info("llm risk texts dropped", "count", dropped)

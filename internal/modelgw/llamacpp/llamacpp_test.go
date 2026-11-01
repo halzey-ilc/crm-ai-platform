@@ -3,6 +3,7 @@ package llamacpp_test
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -104,8 +105,8 @@ func TestDigestRestrictsRefsAndSkipsModelWhenEmpty(t *testing.T) {
 	 "findings":[{"ref":"lead:a","kind":"stale_lead","age_days":9},{"ref":"task:b","kind":"overdue_task","age_days":2}]}`
 	answer := `{"headline":"Требуют внимания: 2.",
 	 "items":[{"kind":"stale_lead","text":"Лид без движения 9 дн.","finding_refs":["lead:a","task:b"]},
-	          {"kind":"overdue_task","text":"Просрочена задача","finding_refs":["task:b"]}],
-	 "recommendations":[{"text":"Связаться с лидом","finding_refs":["lead:a"]}]}`
+	          {"kind":"overdue_task","text":"Просрочена задача","finding_refs":["task:b","task:b"]}],
+	 "recommendations":[{"text":"Связаться с лидом","finding_refs":["lead:a","lead:a"]}]}`
 	var seen map[string]any
 	srv := fakeServer(t, 200, answer, &seen)
 	resp, err := invoke(t, srv.URL, "operations_digest", input)
@@ -251,7 +252,7 @@ func TestRiskReviewDropsAccusationsAndReplacesHeadline(t *testing.T) {
 	answer := `{"headline":"Обнаружено мошенничество!",
 	 "items":[{"kind":"bulk_disqualification","text":"Сотрудник нарушает правила работы с лидами.","signal_refs":["user:u"]},
 	          {"kind":"won_without_activity","text":"Сделка выиграна без записанных контактов.","signal_refs":["deal:a","user:u"]}],
-	 "checks":[{"text":"Уточните, где записаны контакты.","signal_refs":["deal:a"]}]}`
+	 "checks":[{"text":"Уточните, где записаны контакты.","signal_refs":["deal:a","deal:a"]}]}`
 	srv := fakeServer(t, 200, answer, nil)
 	resp, err := invoke(t, srv.URL, "risk_review", input)
 	if err != nil {
@@ -325,6 +326,34 @@ func TestAgentPlanV2OffersStagesOnceAndDropsPastMeetings(t *testing.T) {
 	schema, _ := json.Marshal(seen["response_format"])
 	if !strings.Contains(string(schema), `"enum":["Новая","Переговоры","Договор"]`) {
 		t.Fatalf("stages must be offered once each: %s", schema)
+	}
+}
+
+// llama.cpp builds the grammar in property order. When "reason" came first
+// (Go sorts map keys), the model picked request_deal_brief for every action.
+func TestAgentPlanGrammarStartsWithTool(t *testing.T) {
+	deal := "deal:11111111-1111-4111-8111-111111111111"
+	input := `{"language":"ru","today":"2026-10-29","request":"Назначь встречу",
+	 "tools":["create_task","log_note","request_deal_brief","schedule_meeting","move_deal_stage"],
+	 "subjects":[{"ref":"` + deal + `","kind":"deal","title":"A","stage":"Новая","stages":["Новая","Договор"]}]}`
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []any{map[string]any{"message": map[string]any{"content": `{"actions":[]}`}, "finish_reason": "stop"}},
+		})
+	}))
+	defer srv.Close()
+	if _, err := invoke(t, srv.URL, "agent_plan_v2", input); err != nil {
+		t.Fatal(err)
+	}
+	for _, tool := range []string{"create_task", "log_note", "request_deal_brief", "schedule_meeting", "move_deal_stage"} {
+		if !strings.Contains(string(body), `"properties":{"tool":{"const":"`+tool+`"},"subject_ref":`) {
+			t.Fatalf("the %s variant must start with tool, then subject_ref: %s", tool, body)
+		}
+	}
+	if !strings.Contains(string(body), `"required":["tool","subject_ref","stage","reason"]`) {
+		t.Fatalf("required must follow the property order: %s", body)
 	}
 }
 

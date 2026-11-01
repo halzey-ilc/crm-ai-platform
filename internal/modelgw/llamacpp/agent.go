@@ -58,21 +58,22 @@ func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSche
 	reason := map[string]any{"type": "string", "minLength": 1, "maxLength": 300}
 	variants := []any{}
 	for _, tool := range in.Tools {
-		props := map[string]any{"tool": map[string]any{"const": tool}, "subject_ref": ref, "reason": reason}
-		required := []string{"tool", "subject_ref", "reason"}
+		// "tool" goes first: with keys sorted, every variant began with "reason" or
+		// a tool-specific field, so the model committed to a tool before naming it
+		// and always ended up in request_deal_brief (MODEL_EVALUATION §7).
+		props := ordered{{"tool", map[string]any{"const": tool}}, {"subject_ref", ref}}
 		switch tool {
 		case "create_task":
-			props["title"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 200}
-			props["due_date"] = map[string]any{"anyOf": []any{map[string]any{"type": "null"}, map[string]any{"type": "string", "pattern": `^\d{4}-\d{2}-\d{2}$`}}}
-			required = append(required, "title", "due_date")
+			props = append(props,
+				field{"title", map[string]any{"type": "string", "minLength": 1, "maxLength": 200}},
+				field{"due_date", map[string]any{"anyOf": []any{map[string]any{"type": "null"}, map[string]any{"type": "string", "pattern": `^\d{4}-\d{2}-\d{2}$`}}}})
 		case "log_note":
-			props["body"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 1000}
-			required = append(required, "body")
+			props = append(props, field{"body", map[string]any{"type": "string", "minLength": 1, "maxLength": 1000}})
 		case "schedule_meeting":
-			props["title"] = map[string]any{"type": "string", "minLength": 1, "maxLength": 200}
-			props["start"] = map[string]any{"type": "string", "pattern": `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$`}
-			props["duration_minutes"] = map[string]any{"type": "integer", "minimum": agentplan.MinMeetingMinutes, "maximum": agentplan.MaxMeetingMinutes}
-			required = append(required, "title", "start", "duration_minutes")
+			props = append(props,
+				field{"title", map[string]any{"type": "string", "minLength": 1, "maxLength": 200}},
+				field{"start", map[string]any{"type": "string", "pattern": `^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$`}},
+				field{"duration_minutes", map[string]any{"type": "integer", "minimum": agentplan.MinMeetingMinutes, "maximum": agentplan.MaxMeetingMinutes}})
 		case "move_deal_stage":
 			// The grammar allows the stages of the listed deals; Check ties a stage to its deal.
 			var stages []string
@@ -88,8 +89,12 @@ func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSche
 			if len(stages) == 0 {
 				continue
 			}
-			props["stage"] = map[string]any{"type": "string", "enum": stages}
-			required = append(required, "stage")
+			props = append(props, field{"stage", map[string]any{"type": "string", "enum": stages}})
+		}
+		props = append(props, field{"reason", reason})
+		required := make([]string, len(props))
+		for i, f := range props {
+			required[i] = f.Key
 		}
 		variants = append(variants, map[string]any{"type": "object", "additionalProperties": false, "required": required, "properties": props})
 	}
