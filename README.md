@@ -32,7 +32,7 @@ AI-задачи и возвращает проверенные структур�
 | `agent.plan.v2` (встреча, этап сделки) | Agent Runtime | только unit-тесты (CRM не подключена) |
 | `agent.plan.v3` (v2 + история разговора) | Agent Runtime | `evaluation/datasets/agent_dialog.synthetic.v1.jsonl` (CRM не подключена) |
 | `call.transcribe.v1` + `/v1/audio/*` (речь в текст, Whisper) | Call Intelligence | `scripts/smoke_speech.sh` (без CRM; `make up-speech`) |
-| `knowledge.answer.v1` + `/v1/knowledge/*` | Knowledge Assistant | `scripts/smoke_knowledge.sh` (без CRM) |
+| `knowledge.answer.v1` + `/v1/knowledge/*` (TXT, PDF, DOCX; поиск по словам и смыслу) | Knowledge Assistant | `scripts/smoke_knowledge.sh`, `evaluation/kb_search_eval.py` (без CRM) |
 
 Контракты и правила проверки — [API_CONTRACTS.md](docs/API_CONTRACTS.md).
 Скрипты `e2e_*` используют локальную CRM (`../crm-platform`). `AI_USE_LLM=0` запускает их на

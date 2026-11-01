@@ -41,7 +41,7 @@ func TestAudioUpload(t *testing.T) {
 		Ready: func(context.Context) error { return nil },
 		Log:   slog.New(slog.NewTextHandler(io.Discard, nil)), RequestTimeout: 5 * time.Second,
 		// The JSON limit is tiny; recordings have their own, larger one.
-		MaxBodyBytes: 64, MaxAudioBytes: 1024, RateLimitRPS: 1000, RateLimitBurst: 1000,
+		MaxBodyBytes: 64, MaxUploadBytes: 1024, RateLimitRPS: 1000, RateLimitBurst: 1000,
 	}))
 	defer srv.Close()
 	writer := token(t, "t1", auth.ScopeAudioWrite)

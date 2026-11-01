@@ -6,9 +6,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
 
 	"github.com/jackc/pgx/v5"
 
+	"crmai/internal/embedding"
 	"crmai/internal/knowledge"
 )
 
@@ -23,6 +25,9 @@ type Document struct {
 	Tags      []string
 	Text      string
 	CreatedBy string
+	// Embeddings, when set, hold one vector per passage of knowledge.Chunk(Text),
+	// in order; a length mismatch stores no vectors.
+	Embeddings [][]float32
 }
 
 // PutDocument creates or replaces a document and its passages. Returns the
@@ -31,6 +36,16 @@ func (s *Store) PutDocument(ctx context.Context, tenantID string, d Document) (i
 	sum := sha256.Sum256([]byte(d.Title + "\x00" + d.Text))
 	hash := hex.EncodeToString(sum[:])
 	chunks := knowledge.Chunk(d.Text)
+	vectors := d.Embeddings
+	if len(vectors) != len(chunks) {
+		vectors = nil
+	}
+	vec := func(n int) any {
+		if vectors == nil {
+			return nil
+		}
+		return vectors[n]
+	}
 	changed := true
 	err := s.WithTenant(ctx, tenantID, func(tx pgx.Tx) error {
 		var id, oldHash string
@@ -54,6 +69,16 @@ func (s *Store) PutDocument(ctx context.Context, tenantID string, d Document) (i
 			}
 			if oldHash == hash {
 				changed = false
+				// Same text: only fill in vectors (e.g. an embedding server was added later).
+				for n := range chunks {
+					if vectors == nil {
+						break
+					}
+					if _, err := tx.Exec(ctx, `UPDATE kb_passage SET embedding = $3 WHERE document_id = $1 AND n = $2`,
+						id, n, vectors[n]); err != nil {
+						return err
+					}
+				}
 				return nil
 			}
 			if _, err := tx.Exec(ctx, `DELETE FROM kb_passage WHERE document_id = $1`, id); err != nil {
@@ -61,8 +86,8 @@ func (s *Store) PutDocument(ctx context.Context, tenantID string, d Document) (i
 			}
 		}
 		for n, body := range chunks {
-			if _, err := tx.Exec(ctx, `INSERT INTO kb_passage (document_id, tenant_id, n, body) VALUES ($1, $2, $3, $4)`,
-				id, tenantID, n, body); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO kb_passage (document_id, tenant_id, n, body, embedding) VALUES ($1, $2, $3, $4, $5)`,
+				id, tenantID, n, body, vec(n)); err != nil {
 				return err
 			}
 		}
@@ -121,6 +146,61 @@ func (s *Store) Search(ctx context.Context, tenantID string, tags []string, quer
 	})
 	if err != nil {
 		return nil, fmt.Errorf("postgres: search: %w", err)
+	}
+	return out, nil
+}
+
+// maxVectorCandidates bounds how many passages one semantic search ranks.
+const maxVectorCandidates = 20000
+
+// SearchVector returns the passages closest to the question vector q among the
+// documents the asker may see, ranked in the application (cosine of normalised
+// vectors). The access filter is the same as in Search and part of the query.
+func (s *Store) SearchVector(ctx context.Context, tenantID string, tags []string, q []float32, limit int) ([]knowledge.Passage, error) {
+	type scored struct {
+		p     knowledge.Passage
+		score float32
+	}
+	var top []scored
+	err := s.WithTenant(ctx, tenantID, func(tx pgx.Tx) error {
+		rows, err := tx.Query(ctx, `
+			SELECT d.ref || '#' || p.n, d.title, p.body, p.embedding
+			  FROM kb_passage p
+			  JOIN kb_document d ON d.id = p.document_id
+			 WHERE d.tenant_id = $1
+			   AND d.access_tags && $2::text[]
+			   AND p.embedding IS NOT NULL
+			 LIMIT $3`, tenantID, tags, maxVectorCandidates)
+		if err != nil {
+			return err
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var sc scored
+			var v []float32
+			if err := rows.Scan(&sc.p.Ref, &sc.p.Title, &sc.p.Text, &v); err != nil {
+				return err
+			}
+			sc.score = embedding.Dot(q, v)
+			// Keep the best `limit` in a small sorted slice.
+			i := sort.Search(len(top), func(i int) bool { return top[i].score < sc.score })
+			if i < limit {
+				top = append(top, scored{})
+				copy(top[i+1:], top[i:])
+				top[i] = sc
+				if len(top) > limit {
+					top = top[:limit]
+				}
+			}
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, fmt.Errorf("postgres: vector search: %w", err)
+	}
+	out := make([]knowledge.Passage, len(top))
+	for i, sc := range top {
+		out[i] = sc.p
 	}
 	return out, nil
 }

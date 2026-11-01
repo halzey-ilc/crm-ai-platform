@@ -8,16 +8,59 @@
 // person could not open in the CRM.
 //
 // Search is PostgreSQL full-text search with the "simple" configuration and
-// prefix matching as a crude stemmer for Russian and Kyrgyz. Semantic search
-// (embeddings) needs a GPU and comes later.
+// prefix matching as a crude stemmer for Russian and Kyrgyz, plus, when an
+// embedding server is configured, semantic search over passage vectors; the
+// two rankings are fused (Fuse). The access filter applies to both.
 package knowledge
 
 import (
+	"context"
 	"regexp"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
 )
+
+// Embedder turns questions and passages into normalised vectors.
+type Embedder interface {
+	Query(ctx context.Context, text string) ([]float32, error)
+	Passages(ctx context.Context, texts []string) ([][]float32, error)
+}
+
+// Fuse merges rankings by reciprocal rank fusion (k = 60): a passage found by
+// both full-text and semantic search rises, one found by either still counts.
+// Ties keep the order of the first list. At most limit passages are returned.
+func Fuse(limit int, rankings ...[]Passage) []Passage {
+	score := map[string]float64{}
+	first := map[string]int{}
+	byRef := map[string]Passage{}
+	order := 0
+	for _, list := range rankings {
+		for rank, p := range list {
+			score[p.Ref] += 1 / float64(60+rank+1)
+			if _, seen := byRef[p.Ref]; !seen {
+				byRef[p.Ref] = p
+				first[p.Ref] = order
+				order++
+			}
+		}
+	}
+	out := make([]Passage, 0, len(byRef))
+	for _, p := range byRef {
+		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if score[out[i].Ref] != score[out[j].Ref] {
+			return score[out[i].Ref] > score[out[j].Ref]
+		}
+		return first[out[i].Ref] < first[out[j].Ref]
+	})
+	if len(out) > limit {
+		out = out[:limit]
+	}
+	return out
+}
 
 // Limits for documents and passages.
 const (

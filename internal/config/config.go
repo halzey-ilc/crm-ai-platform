@@ -49,9 +49,12 @@ type Gateway struct {
 	AuthMaxTokenTTL time.Duration
 	RequestTimeout  time.Duration
 	MaxBodyBytes    int64
-	MaxAudioBytes   int64 // PUT /v1/audio/{ref}
-	RateLimitRPS    float64
-	RateLimitBurst  int
+	MaxUploadBytes  int64 // PUT /v1/audio/{ref} and /v1/knowledge/files/{ref}
+	// Embedding server for semantic knowledge search; empty: full-text search only.
+	EmbedURL       string
+	EmbedModel     string
+	RateLimitRPS   float64
+	RateLimitBurst int
 	// Prometheus /metrics on a separate listener; empty disables it.
 	MetricsAddr string
 }
@@ -223,7 +226,9 @@ func loadGateway(l *loader) (Gateway, error) {
 		RequestTimeout:  l.duration("AI_REQUEST_TIMEOUT", 10*time.Second),
 		MaxBodyBytes:    int64(l.integer("AI_MAX_BODY_BYTES", 1<<20, 1024, 16<<20)),
 		// About 50 minutes of 128 kbit/s mp3; the database column allows 100 MB.
-		MaxAudioBytes:  int64(l.integer("AI_MAX_AUDIO_BYTES", 50<<20, 1<<20, 100<<20)),
+		MaxUploadBytes: int64(l.integer("AI_MAX_UPLOAD_BYTES", 50<<20, 1<<20, 100<<20)),
+		EmbedURL:       l.str("AI_EMBED_URL", ""),
+		EmbedModel:     l.str("AI_EMBED_MODEL", "multilingual-e5-small-q8_0"),
 		RateLimitRPS:   float64(l.integer("AI_RATE_LIMIT_RPS", 20, 1, 10000)),
 		RateLimitBurst: l.integer("AI_RATE_LIMIT_BURST", 40, 1, 10000),
 		MetricsAddr:    l.str("AI_METRICS_ADDR", ""),

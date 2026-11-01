@@ -14,9 +14,11 @@ import (
 	"crmai/contracts"
 	"crmai/internal/auth"
 	"crmai/internal/config"
+	"crmai/internal/embedding"
 	"crmai/internal/httpapi"
 	"crmai/internal/jobs"
 	"crmai/internal/jobtypes"
+	"crmai/internal/knowledge"
 	"crmai/internal/metrics"
 	"crmai/internal/platform"
 	"crmai/internal/store/postgres"
@@ -62,7 +64,12 @@ func run() error {
 	}
 	defer store.Close()
 
+	var embedder knowledge.Embedder
+	if cfg.EmbedURL != "" {
+		embedder = embedding.Client{URL: cfg.EmbedURL, Model: cfg.EmbedModel, HTTP: &http.Client{Timeout: 60 * time.Second}}
+	}
 	handler := httpapi.NewHandler(httpapi.Deps{
+		Embedder:       embedder,
 		Jobs:           jobs.NewService(store, types),
 		Types:          types,
 		Verifier:       verifier,
@@ -72,7 +79,7 @@ func run() error {
 		Log:            log,
 		RequestTimeout: cfg.RequestTimeout,
 		MaxBodyBytes:   cfg.MaxBodyBytes,
-		MaxAudioBytes:  cfg.MaxAudioBytes,
+		MaxUploadBytes: cfg.MaxUploadBytes,
 		RateLimitRPS:   cfg.RateLimitRPS,
 		RateLimitBurst: cfg.RateLimitBurst,
 	})

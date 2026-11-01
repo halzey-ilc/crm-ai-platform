@@ -14,6 +14,7 @@ import (
 	"crmai/internal/auth"
 	"crmai/internal/jobs"
 	"crmai/internal/jobtypes"
+	"crmai/internal/knowledge"
 )
 
 // Readiness reports whether dependencies are usable.
@@ -24,13 +25,15 @@ type Deps struct {
 	Jobs           *jobs.Service
 	Types          *jobtypes.Registry
 	Verifier       *auth.Verifier
-	Knowledge      KnowledgeStore // nil disables the /v1/knowledge endpoints
-	Audio          AudioStore     // nil disables the /v1/audio endpoints
+	Knowledge      KnowledgeStore     // nil disables the /v1/knowledge endpoints
+	Embedder       knowledge.Embedder // nil: full-text search only
+	Audio          AudioStore         // nil disables the /v1/audio endpoints
 	Ready          Readiness
 	Log            *slog.Logger
 	RequestTimeout time.Duration
 	MaxBodyBytes   int64
-	MaxAudioBytes  int64
+	// MaxUploadBytes bounds file uploads (recordings, knowledge files).
+	MaxUploadBytes int64
 	RateLimitRPS   float64
 	RateLimitBurst int
 }
@@ -47,6 +50,7 @@ func NewHandler(d Deps) http.Handler {
 		api.HandleFunc("PUT /v1/knowledge/documents/{ref}", h.requireScope(auth.ScopeKnowledgeWrite, h.putDocument))
 		api.HandleFunc("DELETE /v1/knowledge/documents/{ref}", h.requireScope(auth.ScopeKnowledgeWrite, h.deleteDocument))
 		api.HandleFunc("POST /v1/knowledge/ask", h.requireScope(auth.ScopeJobsCreate, h.ask))
+		api.HandleFunc("PUT /v1/knowledge/files/{ref}", h.requireScope(auth.ScopeKnowledgeWrite, h.putFile))
 	}
 	if d.Audio != nil {
 		api.HandleFunc("PUT /v1/audio/{ref}", h.requireScope(auth.ScopeAudioWrite, h.putAudio))
@@ -77,7 +81,7 @@ func NewHandler(d Deps) http.Handler {
 	})
 
 	return withCorrelation(withRecover(d.Log, withAccessLog(d.Log,
-		withLimits(d.RequestTimeout, d.MaxBodyBytes, d.MaxAudioBytes, root))))
+		withLimits(d.RequestTimeout, d.MaxBodyBytes, d.MaxUploadBytes, root))))
 }
 
 type handlers struct{ d Deps }

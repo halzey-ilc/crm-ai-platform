@@ -57,3 +57,21 @@ func TestTags(t *testing.T) {
 		}
 	}
 }
+
+func TestFuseRewardsAgreementAndLimits(t *testing.T) {
+	p := func(ref string) knowledge.Passage { return knowledge.Passage{Ref: ref} }
+	text := []knowledge.Passage{p("a#0"), p("b#0"), p("c#0")}
+	semantic := []knowledge.Passage{p("d#0"), p("b#0")}
+	got := knowledge.Fuse(3, text, semantic)
+	var refs []string
+	for _, x := range got {
+		refs = append(refs, x.Ref)
+	}
+	// b is in both lists and comes first; a and d tie (rank 1 each), a was seen first.
+	if strings.Join(refs, ",") != "b#0,a#0,d#0" {
+		t.Fatalf("fused order: %v", refs)
+	}
+	if len(knowledge.Fuse(8, nil, nil)) != 0 {
+		t.Fatal("nothing in, nothing out")
+	}
+}

@@ -14,12 +14,14 @@ env: ## Create .env with generated secrets (never overwrites)
 up: ## Start postgres, migrate, gateway, orchestrator
 	$(COMPOSE) up -d --build
 
-up-llm: ## Start the stack with the local model (Qwen3.5-4B on llama.cpp) instead of the mock
+up-llm: ## Start the stack with the local model (Qwen3.5-4B on llama.cpp) and embeddings instead of the mock
 	./scripts/get_model.sh
+	AI_MODEL_REPO=TwinSunsLLC/multilingual-e5-small-gguf AI_MODEL_FILE=multilingual-e5-small-q8_0.gguf ./scripts/get_model.sh
 	$(COMPOSE) -f deployments/local/compose.llm.yaml up -d --build
 
 up-speech: ## up-llm plus speech recognition (Whisper large-v3-turbo on whisper.cpp) for call.transcribe.v1
 	./scripts/get_model.sh
+	AI_MODEL_REPO=TwinSunsLLC/multilingual-e5-small-gguf AI_MODEL_FILE=multilingual-e5-small-q8_0.gguf ./scripts/get_model.sh
 	AI_MODEL_REPO=ggerganov/whisper.cpp AI_MODEL_FILE=ggml-large-v3-turbo-q5_0.bin ./scripts/get_model.sh
 	$(COMPOSE) -f deployments/local/compose.llm.yaml -f deployments/local/compose.speech.yaml up -d --build
 

@@ -42,6 +42,50 @@ services:
     cap_drop: [ALL]
     restart: unless-stopped
 
+  # Embeddings for semantic knowledge search: multilingual-e5-small (MIT, XLM-R based,
+  # 384 dims), Q8_0 GGUF from TwinSunsLLC/multilingual-e5-small-gguf, sha256-checked by
+  # scripts/get_model.sh. Same llama.cpp image; mean pooling as e5 requires.
+  embed:
+    image: ghcr.io/ggml-org/llama.cpp:server@sha256:8052c13edd987de8858f8150031e025ac3d66823f09cf3ec8220899c4abce220
+    command:
+      - -m
+      - /models/multilingual-e5-small-q8_0.gguf
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --embeddings
+      - --pooling
+      - mean
+      - --ctx-size
+      - "512"
+      - --batch-size
+      - "512"
+      - --ubatch-size
+      - "512"
+      - --threads
+      - "2"
+      - --no-webui
+    volumes:
+      - ${AI_MODELS_DIR:-${HOME}/.local/share/crm-ai-platform/models}:/models:ro
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+  gateway:
+    environment:
+      AI_EMBED_URL: http://embed:8080
+    depends_on:
+      embed: { condition: service_healthy }
+
   orchestrator:
     environment:
       AI_MODEL_PROVIDERS: llamacpp

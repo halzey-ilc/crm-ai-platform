@@ -260,7 +260,11 @@ CRM (модули meetings и sales_pipeline), см. «Отложено» в roa
 
 ```
 PUT    /v1/knowledge/documents/{ref}   scope ai.knowledge.write
-       {title, language: ru|ky|en, access_tags: [...], text}  -> {ref, passages, changed}
+       {title, language: ru|ky|en, access_tags: [...], text}  -> {ref, passages, changed, semantic}
+PUT    /v1/knowledge/files/{ref}?title=…&language=ru&access_tags=role:manager,all
+                                       scope ai.knowledge.write, тело — сам файл:
+       text/plain | application/pdf | application/vnd.openxmlformats-officedocument.wordprocessingml.document
+       -> как PUT /documents; 415 — другой тип, 422 no_text — нет текстового слоя (скан: нужен OCR)
 DELETE /v1/knowledge/documents/{ref}   scope ai.knowledge.write  -> 204 | 404
 POST   /v1/knowledge/ask               scope ai.jobs.create, Idempotency-Key
        {question, language, access_tags: [...]}  -> 202 job (knowledge.answer.v1); poll GET /v1/jobs/{id}
@@ -280,7 +284,14 @@ POST   /v1/knowledge/ask               scope ai.jobs.create, Idempotency-Key
 - Документы других компаний недоступны (RLS).
 
 **Поиск:** полнотекстовый в PostgreSQL (`simple`). Слова вопроса обрезаются до префикса —
-грубая замена стемминга для ru/ky. Семантический поиск (эмбеддинги) — 📐, нужен GPU.
+грубая замена стемминга для ru/ky. Если задан `AI_EMBED_URL`, к нему добавляется **поиск по смыслу**:
+каждый фрагмент при загрузке получает вектор (multilingual-e5-small, 384 числа), вопрос — тоже, и
+ближайшие фрагменты (среди тех, что прошли фильтр доступа) сливаются с полнотекстовыми по RRF
+(`semantic: true` в ответе загрузки). Без сервера эмбеддингов — только полнотекстовый поиск.
+На синтетическом наборе нужный документ первым: 7/12 → 10/12 (MODEL_EVALUATION §10).
+
+**Файлы.** Из PDF берётся текстовый слой (сканы — нет, нужен OCR), из DOCX — абзацы и таблицы
+(строка таблицы — одна строка текста). Лимит размера — `AI_MAX_UPLOAD_BYTES`.
 
 **Ответ** (`knowledge_answer.output.v1`) — только `statements[]`: `{text, passage_ref, quote}`.
 Свободного текста нет. Проверка отклоняет:
@@ -302,7 +313,7 @@ POST   /v1/jobs          {"type":"call.transcribe.v1","input":{
 ```
 
 **Записи.**
-- До 50 МБ (`AI_MAX_AUDIO_BYTES`, не больше 100 МБ); у остальных запросов свой, маленький лимит.
+- До 50 МБ (`AI_MAX_UPLOAD_BYTES`, не больше 100 МБ; тот же лимит у `/v1/knowledge/files`); у остальных запросов свой, маленький лимит.
 - Хранятся в PostgreSQL с изоляцией по компаниям (RLS) и **удаляются через 24 часа**
   (`AI_AUDIO_RETENTION_HOURS`) — их нужно только расшифровать. CRM может удалить раньше.
 - В задаче — только ссылка на запись, сам звук в задачу не попадает.
