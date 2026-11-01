@@ -23,9 +23,10 @@ log_note: a note on a record, only when the user asks to record something (body:
 request_deal_brief: prepare a brief for a deal.
 schedule_meeting: a meeting on a record (title; start as YYYY-MM-DDTHH:MM local time, not before today; duration_minutes 15-480).
 move_deal_stage: move a deal to another stage of its pipeline (stage: one of the deal's "stages", not its current "stage").
-Every action needs a short reason. If the request asks for something these tools cannot do,
-or a date or time the user did not give is needed, propose no action rather than guessing:
-answer {"actions":[]}. Never use log_note to record a request you cannot carry out.
+First answer can_do: true only if these tools do what the user asks; false if the user asks
+for something no listed tool does (for example deleting, sending or paying) or a date or time
+the user did not give is needed. With can_do false, actions is []. Never use log_note to record
+a request you cannot carry out. Every action needs a short reason.
 Today is %s. Write title, body and reason in %s. Answer with JSON only.`
 
 func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSchema string) (json.RawMessage, error) {
@@ -99,18 +100,26 @@ func (p Provider) agentPlan(ctx context.Context, raw json.RawMessage, outputSche
 		}
 		variants = append(variants, map[string]any{"type": "object", "additionalProperties": false, "required": required, "properties": props})
 	}
+	// can_do comes first so the model decides whether the request is possible before writing
+	// actions; a prompt rule alone still let it log an impossible request as a note (§7).
 	schema := map[string]any{
-		"type": "object", "additionalProperties": false, "required": []string{"actions"},
-		"properties": map[string]any{
-			"actions": map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"anyOf": variants}},
+		"type": "object", "additionalProperties": false, "required": []string{"can_do", "actions"},
+		"properties": ordered{
+			{"can_do", map[string]any{"type": "boolean"}},
+			{"actions", map[string]any{"type": "array", "maxItems": 3, "items": map[string]any{"anyOf": variants}}},
 		},
 	}
 	user, _ := json.Marshal(map[string]any{"request": in.Request, "tools": in.Tools, "records": in.Subjects})
 	var ans struct {
+		CanDo   bool               `json:"can_do"`
 		Actions []agentplan.Action `json:"actions"`
 	}
 	if err := p.complete(ctx, fmt.Sprintf(agentSystem, in.Today, languageName(in.Language)), "Request:\n"+string(user), schema, 500, &ans); err != nil {
 		return nil, err
+	}
+	if !ans.CanDo {
+		// The grammar cannot tie actions to can_do; we do.
+		ans.Actions = nil
 	}
 	dropped := 0
 	for _, a := range ans.Actions {

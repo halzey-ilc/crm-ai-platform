@@ -275,7 +275,7 @@ func TestAgentPlanKeepsOnlyValidActions(t *testing.T) {
 	deal := "deal:11111111-1111-4111-8111-111111111111"
 	input := `{"language":"ru","today":"2026-10-29","request":"Поставь задачу перезвонить в пятницу",
 	 "tools":["create_task"],"subjects":[{"ref":"` + deal + `","kind":"deal","title":"Сделка"}]}`
-	answer := `{"actions":[
+	answer := `{"can_do":true,"actions":[
 	  {"tool":"create_task","subject_ref":"` + deal + `","title":"Перезвонить клиенту","due_date":"2026-10-30","reason":"Просьба пользователя"},
 	  {"tool":"create_task","subject_ref":"` + deal + `","title":"Старая задача","due_date":"2025-01-01","reason":"r"}]}`
 	var seen map[string]any
@@ -306,7 +306,7 @@ func TestAgentPlanV2OffersStagesOnceAndDropsPastMeetings(t *testing.T) {
 	 "tools":["schedule_meeting","move_deal_stage"],
 	 "subjects":[{"ref":"` + deal + `","kind":"deal","title":"A","stage":"Новая","stages":` + stages + `},
 	             {"ref":"` + other + `","kind":"deal","title":"B","stage":"Договор","stages":` + stages + `}]}`
-	answer := `{"actions":[
+	answer := `{"can_do":true,"actions":[
 	  {"tool":"schedule_meeting","subject_ref":"` + deal + `","title":"Демо","start":"2026-10-01T10:00","duration_minutes":60,"reason":"r"},
 	  {"tool":"move_deal_stage","subject_ref":"` + deal + `","stage":"Переговоры","reason":"просьба пользователя"}]}`
 	var seen map[string]any
@@ -354,6 +354,31 @@ func TestAgentPlanGrammarStartsWithTool(t *testing.T) {
 	}
 	if !strings.Contains(string(body), `"required":["tool","subject_ref","stage","reason"]`) {
 		t.Fatalf("required must follow the property order: %s", body)
+	}
+	if !strings.Contains(string(body), `"properties":{"can_do":{"type":"boolean"},"actions":`) {
+		t.Fatalf("the model must decide can_do before writing actions: %s", body)
+	}
+}
+
+// With only a prompt rule the model still logged "delete all deals" as a note.
+func TestAgentPlanDropsActionsWhenRequestCannotBeDone(t *testing.T) {
+	customer := "customer:11111111-1111-4111-8111-111111111111"
+	input := `{"language":"ru","today":"2026-10-29","request":"Удали все сделки этого клиента",
+	 "tools":["create_task","log_note"],"subjects":[{"ref":"` + customer + `","kind":"customer","title":"ОсОО Тест"}]}`
+	answer := `{"can_do":false,"actions":[
+	  {"tool":"log_note","subject_ref":"` + customer + `","body":"Запрос на удаление всех сделок","reason":"удаление недоступно"}]}`
+	srv := fakeServer(t, 200, answer, nil)
+	resp, err := invoke(t, srv.URL, "agent_plan_v2", input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	schemas, _ := contracts.Load()
+	if err := schemas.Validate("agent_plan.output.v2", resp.Output); err != nil {
+		t.Fatalf("contract: %v\n%s", err, resp.Output)
+	}
+	out := string(resp.Output)
+	if !strings.Contains(out, `"actions":[]`) || !strings.Contains(out, `"insufficient_data":true`) {
+		t.Fatalf("actions must be dropped when can_do is false: %s", out)
 	}
 }
 
