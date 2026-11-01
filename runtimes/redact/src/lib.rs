@@ -11,9 +11,12 @@
 //!
 //! Reports contain counts per kind only, never the values.
 //! Names are found by rules (`names`): common first names, patronymics, surnames
-//! next to them, Kyrgyz "уулу"/"кызы". Names outside the dictionary and addresses
-//! are not covered; that needs a NER model trained on labelled real data.
+//! next to them, Kyrgyz "уулу"/"кызы". Addresses are found by rules too (`address`):
+//! a street marker with a name, house and flat. Names outside the dictionary and
+//! unusual address spellings are missed; that needs a NER model trained on
+//! labelled real data.
 
+pub mod address;
 pub mod detect;
 pub mod names;
 
@@ -96,6 +99,11 @@ impl Redactor {
 fn normalise(kind: Kind, raw: &str) -> String {
     match kind {
         Kind::Email | Kind::Name => raw.to_lowercase(),
+        Kind::Address => raw
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase(),
         Kind::Passport | Kind::Iban => raw.chars().filter(|c| !c.is_whitespace()).collect(),
         _ => raw.chars().filter(char::is_ascii_digit).collect(),
     }

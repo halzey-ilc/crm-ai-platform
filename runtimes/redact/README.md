@@ -14,15 +14,16 @@ forbids personal data in training sets and external calls without a policy.
 | `KG_PIN` | 14 digits | sex digit 1/2 + valid birth date DDMMYYYY |
 | `KZ_IIN` | 12 digits | birth date YYMMDD, century digit 1–6, check digit |
 | `PASSPORT` | `ID`/`AN`/`AC`/`PE`/`AL` + 7 digits | — |
+| `ADDRESS` | street marker + capitalised name + house/flat (rules in `src/address.rs`): `ул. Киевская 95, кв. 12`, `проспект Чуй, д. 12/3`, `мкр. Джал-29`, `Ахунбаев көчөсү, 12`, `д. 7, кв. 12` | ambiguous short markers (`пр.`, `пл.`, `пер.`, `наб.`) need a house number; a city alone is kept |
 | `NAME` | capitalised words (rules in `src/names.rs`) | a known first name (with case endings), a -бек/-гуль name, a patronymic or «уулу»/«кызы» must be in the run |
 
-When candidates overlap, the more specific kind wins (e-mail > checksummed ids > phone > name).
+When candidates overlap, the more specific kind wins (e-mail > checksummed ids > phone >
+address > name), so «ул. Байтик Баатыра 7» is one address, not a name.
 
-**Names are rule-based.** Names outside the dictionary are missed; on synthetic holdout
-sentences precision is 1.00 and recall 0.78 (`cargo test --test names_eval -- --nocapture`).
-
-**Not covered:** addresses. Free text must still be treated as containing personal data
-until a NER model trained on labelled real examples exists.
+**Names and addresses are rule-based.** Names outside the dictionary and unusual address
+spellings are missed; on synthetic holdout sentences name precision is 1.00 and recall 0.78
+(`cargo test --test names_eval -- --nocapture`). Free text must still be treated as
+containing personal data until a NER model trained on labelled real examples exists.
 
 ## Usage
 
@@ -46,10 +47,15 @@ crmai-redact jsonl --fields notes,text --key-file /run/secrets/redact_key < in.j
 
 ## Measured
 
-- Tests: `make redact-test` — 10 tests covering checksums, each kind in Russian text,
+- Tests: `make redact-test` — 13 tests (incl. addresses and look-alikes such as «и пр. Также»)
+  covering checksums, each kind in Russian text,
   ordinary numbers (amounts, dates, times) left alone, consistency, keyed pseudonyms,
   idempotence, overlaps, JSONL fields, and a 20 000-value input.
 - 50 MB of synthetic Russian text with ~860 000 values: **23 s (2.2 MB/s)** on the dev
   laptop under load, no raw value left in the output.
 - The first version took 30 min on the same input: its overlap check was quadratic. It is
   now an ordered-map lookup, O(n log n).
+- With addresses (2026-11-01), release build, 20 MB of mixed ru/ky text with ~350 000 values:
+  **8.5 s** (the version without addresses: 9.6 s on the same text). Address patterns avoid
+  `\b`: a Unicode word boundary on Cyrillic keeps the regex engine off its DFA and made
+  a 600 KB text take 5 s.

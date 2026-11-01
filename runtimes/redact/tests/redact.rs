@@ -161,3 +161,62 @@ fn jsonl_fields_only() {
     assert_eq!(v["phone_count"], 2);
     assert!(redact_json_fields(&placeholders(), "not json", &["notes".into()], &mut r).is_err());
 }
+
+fn addresses(text: &str) -> Vec<&str> {
+    detect(text)
+        .into_iter()
+        .filter(|s| s.kind == Kind::Address)
+        .map(|s| &text[s.start..s.end])
+        .collect()
+}
+
+#[test]
+fn detects_addresses_in_russian_and_kyrgyz() {
+    let cases = [
+        (
+            "Доставка на ул. Киевская 95, кв. 12, после обеда.",
+            "ул. Киевская 95, кв. 12",
+        ),
+        (
+            "Адрес: проспект Чуй, д. 12/3, кв. 45.",
+            "проспект Чуй, д. 12/3, кв. 45",
+        ),
+        ("Живёт в мкр. Джал-29, дом 5а.", "мкр. Джал-29, дом 5а"),
+        (
+            "Офис на улице? Нет: ул. Байтик Баатыра 7, оф. 3",
+            "ул. Байтик Баатыра 7, оф. 3",
+        ),
+        (
+            "Кардар Ахунбаев көчөсү, 12 дарегинде турат.",
+            "Ахунбаев көчөсү, 12",
+        ),
+        ("Привезите в д. 7, кв. 12 до вечера.", "д. 7, кв. 12"),
+        ("Склад: пр. Манаса 40.", "пр. Манаса 40"),
+    ];
+    for (text, want) in cases {
+        assert_eq!(addresses(text), vec![want], "{text}");
+    }
+}
+
+#[test]
+fn keeps_words_that_only_look_like_address_markers() {
+    for text in [
+        "Купили стулья, столы и пр. Также нужна доставка.", // "пр." = "прочее", no house number
+        "Улица была пустой, клиент не пришёл.",             // marker without a capitalised name
+        "Город Бишкек, Чуйская область.",                   // a city alone is not personal
+        "Оплата 12 000 сом, пл. поручение 45.",             // "пл." followed by a lowercase word
+    ] {
+        assert!(addresses(text).is_empty(), "{text}: {:?}", addresses(text));
+    }
+}
+
+#[test]
+fn same_address_written_differently_gets_one_placeholder() {
+    let mut report = Report::new();
+    let out = placeholders().redact(
+        "Был на ул. Киевская 95. Потом снова: ул.  Киевская 95.",
+        &mut report,
+    );
+    assert_eq!(out.matches("[ADDRESS_1]").count(), 2, "{out}");
+    assert_eq!(report.get("ADDRESS"), Some(&2));
+}

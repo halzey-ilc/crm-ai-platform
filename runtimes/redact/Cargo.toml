@@ -3,7 +3,7 @@ name = "crmai-redact"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "Detects and replaces personal data (emails, phones, cards, IBANs, KG/KZ personal numbers, passports) before data leaves the CRM for training or external providers."
+description = "Detects and replaces personal data (emails, phones, cards, IBANs, KG/KZ personal numbers, passports, addresses, names) before data leaves the CRM for training or external providers."
 license = "Proprietary"
 publish = false
 

@@ -18,6 +18,8 @@ pub enum Kind {
     /// Kyrgyz passport / ID card number (two letters + 7 digits).
     Passport,
     Phone,
+    /// Street address, found by rules (see `address`), not by a trained model.
+    Address,
     /// Personal name, found by rules (see `names`), not by a trained model.
     Name,
 }
@@ -32,11 +34,12 @@ impl Kind {
             Kind::KzIin => "KZ_IIN",
             Kind::Passport => "PASSPORT",
             Kind::Phone => "PHONE",
+            Kind::Address => "ADDRESS",
             Kind::Name => "NAME",
         }
     }
 
-    pub const ALL: [Kind; 8] = [
+    pub const ALL: [Kind; 9] = [
         Kind::Email,
         Kind::Card,
         Kind::Iban,
@@ -44,6 +47,7 @@ impl Kind {
         Kind::KzIin,
         Kind::Passport,
         Kind::Phone,
+        Kind::Address,
         Kind::Name,
     ];
 }
@@ -176,7 +180,8 @@ fn phone_ok(s: &str) -> bool {
 }
 
 /// Every detected span, longest-and-earliest first, without overlaps.
-/// Order of precedence when spans overlap: emails, then checksummed ids, then phones, then names.
+/// Order of precedence when spans overlap: emails, then checksummed ids, then phones,
+/// then addresses, then names.
 pub fn detect(text: &str) -> Vec<Span> {
     let mut spans: Vec<Span> = Vec::new();
     let mut push = |kind: Kind, re: &Regex, valid: &dyn Fn(&str) -> bool| {
@@ -197,6 +202,14 @@ pub fn detect(text: &str) -> Vec<Span> {
     push(Kind::KzIin, &DIGITS_12, &kz_iin_ok);
     push(Kind::Passport, &PASSPORT, &|_| true);
     push(Kind::Phone, &PHONE, &phone_ok);
+    // Before names: a street named after a person ("ул. Байтик Баатыра") is an address.
+    for (start, end) in crate::address::find(text) {
+        spans.push(Span {
+            kind: Kind::Address,
+            start,
+            end,
+        });
+    }
     // Names last: on overlap a checksummed id or a phone wins.
     for (start, end) in crate::names::find(text) {
         spans.push(Span {
