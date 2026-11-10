@@ -4,7 +4,7 @@ TOOLKIT := training/toolkit
 
 .PHONY: help env up up-llm down logs ps build test test-integration lint vet fmt-check docker-build \
         toolkit-install toolkit-test toolkit-experiment redact-test redact-build check token playground up-speech \
-        eval-mock eval-baseline eval-llm
+        eval-mock eval-baseline eval-llm up-gpu
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-18s %s\n", $$1, $$2}'
@@ -26,8 +26,13 @@ up-speech: ## up-llm plus speech recognition (Whisper large-v3-turbo on whisper.
 	AI_MODEL_REPO=ggerganov/whisper.cpp AI_MODEL_FILE=ggml-large-v3-turbo-q5_0.bin ./scripts/get_model.sh
 	$(COMPOSE) -f deployments/local/compose.llm.yaml -f deployments/local/compose.speech.yaml up -d --build
 
+up-gpu: ## The whole stack on an NVIDIA GPU server (docs/GPU_DEPLOY.md); models must be fetched first
+	$(COMPOSE) -f deployments/local/compose.llm.yaml -f deployments/local/compose.speech.yaml \
+	  -f deployments/local/compose.gpu.yaml up -d --build
+
 down: ## Stop the stack (keeps the database volume)
-	$(COMPOSE) -f deployments/local/compose.llm.yaml -f deployments/local/compose.speech.yaml down
+	$(COMPOSE) -f deployments/local/compose.llm.yaml -f deployments/local/compose.speech.yaml \
+	  -f deployments/local/compose.gpu.yaml down
 
 logs: ## Follow service logs
 	$(COMPOSE) logs -f gateway orchestrator

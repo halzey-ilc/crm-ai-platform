@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "call_review.input.v1",
+  "description": "Input of the call.review.v1 job: a call transcript split into turns (as call.transcribe.v1 produces it) and the company's checklist. The platform reviews the manager's side of the call; the CRM computes the score from the verdicts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language", "segments", "criteria"],
+  "properties": {
+    "language": { "type": "string", "enum": ["ru", "ky", "en"], "description": "Language of the comments and advice." },
+    "call_ref": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9._:-]{1,128}$",
+      "description": "Opaque reference to the CRM call record. Not interpreted by the platform."
+    },
+    "segments": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 400,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "speaker", "text"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^s[0-9]{1,4}$" },
+          "speaker": { "type": "string", "enum": ["manager", "customer", "unknown"] },
+          "text": { "type": "string", "minLength": 1, "maxLength": 2000 }
+        }
+      }
+    },
+    "criteria": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "title"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,39}$" },
+          "title": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "description": { "type": "string", "minLength": 1, "maxLength": 300 }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,114 @@
+# Overlay for a server with an NVIDIA GPU, on top of compose.llm.yaml and compose.speech.yaml:
+#
+#   make up-gpu   # = compose.yaml + compose.llm.yaml + compose.speech.yaml + compose.gpu.yaml
+#
+# Needs the NVIDIA driver and the NVIDIA Container Toolkit on the host (docs/GPU_DEPLOY.md).
+# The CUDA images are pinned by tag here; pin them by digest after the first pull
+# (`docker inspect --format '{{index .RepoDigests 0}}' <image>`), as the CPU overlays do.
+#
+# The text model is chosen by the GPU's memory (docs/GPU_DEPLOY.md, "Which model"):
+# AI_LLM_MODEL_FILE is a GGUF in $AI_MODELS_DIR, fetched with scripts/get_model.sh.
+name: crm-ai-platform
+
+x-gpu: &gpu
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+services:
+  llm:
+    <<: *gpu
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    command:
+      - -m
+      - /models/${AI_LLM_MODEL_FILE:-Qwen_Qwen3.5-4B-Q4_K_M.gguf}
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      # Every layer on the GPU.
+      - --n-gpu-layers
+      - "999"
+      # Several managers at once: each slot gets ctx-size / parallel tokens.
+      - --parallel
+      - "${AI_LLM_PARALLEL:-4}"
+      - --ctx-size
+      - "${AI_LLM_CTX:-32768}"
+      - --flash-attn
+      - "on"
+      - --jinja
+      - --no-webui
+    mem_limit: 16g
+
+  embed:
+    <<: *gpu
+    image: ghcr.io/ggml-org/llama.cpp:server-cuda
+    command:
+      - -m
+      - /models/multilingual-e5-small-q8_0.gguf
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8080"
+      - --embeddings
+      - --pooling
+      - mean
+      - --ctx-size
+      - "512"
+      - --batch-size
+      - "512"
+      - --ubatch-size
+      - "512"
+      - --n-gpu-layers
+      - "999"
+      - --no-webui
+
+  whisper:
+    <<: *gpu
+    image: ghcr.io/ggml-org/whisper.cpp:main-cuda
+    command:
+      - >-
+        whisper-server --host 0.0.0.0 --port 8080
+        -m /models/${AI_WHISPER_MODEL_FILE:-ggml-large-v3-turbo-q5_0.bin}
+        --convert
+    mem_limit: 6g
+
+  # Kyrgyz speech: a Whisper fine-tuned on Kyrgyz, converted to ggml by
+  # scripts/get_ky_whisper.sh. The orchestrator sends Kyrgyz calls here.
+  whisper-ky:
+    <<: *gpu
+    image: ghcr.io/ggml-org/whisper.cpp:main-cuda
+    command:
+      - >-
+        whisper-server --host 0.0.0.0 --port 8080
+        -m /models/${AI_WHISPER_KY_MODEL_FILE:-ggml-kyrgyz.bin}
+        --convert
+    working_dir: /tmp
+    volumes:
+      - ${AI_MODELS_DIR:-${HOME}/.local/share/crm-ai-platform/models}:/models:ro
+    tmpfs:
+      - /tmp:size=512m
+    mem_limit: 6g
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://localhost:8080/"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+    read_only: true
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: [ALL]
+    restart: unless-stopped
+
+  orchestrator:
+    environment:
+      # Parallel jobs: the model serves AI_LLM_PARALLEL requests at once.
+      AI_WORKER_CONCURRENCY: "${AI_LLM_PARALLEL:-4}"
+      AI_LLAMACPP_MODEL: ${AI_LLAMACPP_MODEL:-qwen3.5-4b-instruct-q4_k_m}
+      AI_WHISPER_KY_URL: http://whisper-ky:8080
+    depends_on:
+      whisper-ky: { condition: service_healthy }
